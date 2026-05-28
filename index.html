@@ -1881,98 +1881,125 @@ async function l5EndGame() {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  GORILLAS.BAS  DRAW-STRING  RENDERER
+//  GORILLAS.BAS  CANVAS  RENDERER
+//  Direct translation of QBasic SUB DrawGorilla(x, y, arms)
+//  arms=1 → right arm raised (throwing pose)
 // ═══════════════════════════════════════════════════════════
 function makeGorillaCanvas() {
-  // Original QBasic DRAW string from GORILLAS.BAS (SCREEN 12)
-  // COLOR 11 = bright cyan/yellow, PSET sets start cursor, DRAW traces outline
-  const DRAW_STR =
-    'U5BM-3R6U1R2D1R2U2R2D3R1U1L1D1L1U1L1D1L1D3R2U2R1D2R1U1R1' +
-    'D1L1R1U1L1D1R1D1L1R1D1L2U1L1U1L1U2LU2L1U1';
-
-  // ── Parse DRAW string into move segments ─────────────────
-  function parseSegs(s) {
-    const segs = [];
-    let i = 0, x = 0, y = 0;
-    while (i < s.length) {
-      let blank = false;
-      if (s[i].toUpperCase() === 'B') { blank = true; i++; }
-      if (i >= s.length) break;
-      const cmd = s[i++].toUpperCase();
-      let nx = x, ny = y;
-      if (cmd === 'M') {
-        let sx = 1;
-        if (s[i] === '-') { sx = -1; i++; } else if (s[i] === '+') i++;
-        let xi = 0;
-        while (i < s.length && s[i] >= '0' && s[i] <= '9') xi = xi * 10 + +s[i++];
-        xi *= sx;
-        let yi = 0;
-        if (i < s.length && s[i] === ',') {
-          i++;
-          let sy = 1;
-          if (s[i] === '-') { sy = -1; i++; } else if (s[i] === '+') i++;
-          while (i < s.length && s[i] >= '0' && s[i] <= '9') yi = yi * 10 + +s[i++];
-          yi *= sy;
-        }
-        nx = x + xi; ny = y + yi;
-      } else {
-        let n = 0, hasN = false;
-        while (i < s.length && s[i] >= '0' && s[i] <= '9') { n = n * 10 + +s[i++]; hasN = true; }
-        if (!hasN) n = 1;
-        if      (cmd === 'U') ny = y - n;
-        else if (cmd === 'D') ny = y + n;
-        else if (cmd === 'L') nx = x - n;
-        else if (cmd === 'R') nx = x + n;
-      }
-      segs.push({ x1: x, y1: y, x2: nx, y2: ny, draw: !blank });
-      x = nx; y = ny;
-    }
-    return segs;
-  }
-
-  const segs = parseSegs(DRAW_STR);
-
-  // ── Bounding box ──────────────────────────────────────────
-  let minX = 0, maxX = 0, minY = 0, maxY = 0;
-  for (const sg of segs) {
-    minX = Math.min(minX, sg.x1, sg.x2);
-    maxX = Math.max(maxX, sg.x1, sg.x2);
-    minY = Math.min(minY, sg.y1, sg.y2);
-    maxY = Math.max(maxY, sg.y1, sg.y2);
-  }
-
-  // ── Canvas setup ──────────────────────────────────────────
-  const SCALE = 14;            // each QB pixel → 14×14 canvas pixels
-  const PAD   = SCALE * 3;
-  const W     = (maxX - minX + 1) * SCALE + PAD * 2;
-  const H     = (maxY - minY + 1) * SCALE + PAD * 2;
-
+  const SCL = 6;                // Scl() scale factor
+  const W   = 195, H = 265;
   const cv  = document.createElement('canvas');
   cv.width  = W;
   cv.height = H;
-  cv.style.cssText =
-    'display:block;margin:6px auto;image-rendering:pixelated;' +
-    'image-rendering:crisp-edges;max-width:100%;';
+  cv.style.cssText = 'float:right;margin:0 0 8px 16px;';
 
   const ctx = cv.getContext('2d');
-  ctx.fillStyle = '#000033';
+  const pi  = Math.PI;
+  const OC  = '#FFFF55';        // OBJECTCOLOR
+  const BK  = '#000000';        // color 0
+
+  ctx.fillStyle = '#0000AA';
   ctx.fillRect(0, 0, W, H);
 
-  const toX = x => PAD + (x - minX) * SCALE;
-  const toY = y => PAD + (y - minY) * SCALE;
+  const ox = 100, oy = 42;      // gorilla (x, y) — centre-top of head
+  const s  = n => n * SCL;      // Scl(n)
 
-  // ── Rasterise each segment as pixel blocks ────────────────
-  ctx.fillStyle = '#FFFF55';   // EGA COLOR 11 - bright yellow
-  for (const sg of segs) {
-    if (!sg.draw) continue;
-    const dx = sg.x2 - sg.x1, dy = sg.y2 - sg.y1;
-    const steps = Math.max(Math.abs(dx), Math.abs(dy));
-    for (let t = 0; t <= steps; t++) {
-      const px = steps ? Math.round(sg.x1 + dx * t / steps) : sg.x1;
-      const py = steps ? Math.round(sg.y1 + dy * t / steps) : sg.y1;
-      ctx.fillRect(toX(px), toY(py), SCALE, SCALE);
-    }
-  }
+  // LINE (x1,y1)-(x2,y2), c, BF  →  fillRect
+  const fr = (x1, y1, x2, y2, c) => {
+    ctx.fillStyle = c;
+    ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+  };
+
+  // LINE (x1,y)-(x2,y), c  →  horizontal stroke
+  const hl = (x1, x2, y, c) => {
+    ctx.strokeStyle = c;
+    ctx.lineWidth   = Math.max(2, SCL / 2);
+    ctx.lineCap     = 'butt';
+    ctx.beginPath();
+    ctx.moveTo(x1, y);
+    ctx.lineTo(x2, y);
+    ctx.stroke();
+  };
+
+  // FOR i loop of CIRCLE arcs → single solid filled shape.
+  // QBasic draws 5 slightly-offset arc strokes to build a thick band.
+  // Here we replace that with one closed path: outer arc (CW) + inner arc (CCW),
+  // which Canvas auto-caps at both ends with straight lines → fully filled, no gaps.
+  // ocx/ocy = centre of the circle that forms the OUTER boundary of the limb.
+  // icx/icy = centre of the circle that forms the INNER boundary.
+  const filledBand = (ocx, ocy, icx, icy, r, a0, a1, c) => {
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.arc(ocx, ocy, r, a0, a1, false); // outer arc, clockwise
+    ctx.arc(icx, icy, r, a1, a0, true);  // inner arc, counter-clockwise (reverses back)
+    ctx.closePath();
+    ctx.fill();
+  };
+
+  // ── HEAD ──────────────────────────────────────────────────
+  fr(ox - s(4),   oy,        ox + s(2.9), oy + s(6),  OC);
+  fr(ox - s(5),   oy + s(2), ox + s(4),   oy + s(4),  OC);
+
+  // Brow: LINE ..., 0
+  hl(ox - s(3), ox + s(2), oy + s(2), BK);
+
+  // Nose: PSET ..., 0  (black nostrils)
+  const ny = oy + s(4);
+  fr(ox - s(2), ny - 1, ox - s(1), ny + 2, BK);
+  fr(ox + s(1), ny - 1, ox + s(2), ny + 2, BK);
+
+  // ── NECK ──────────────────────────────────────────────────
+  // Filled rect bridges the head-bottom (y+Scl(6)) to body-top (y+Scl(8)) gap
+  fr(ox - s(3), oy + s(6), ox + s(2), oy + s(8), OC);
+
+  // ── BODY ──────────────────────────────────────────────────
+  fr(ox - s(8),   oy + s(8),  ox + s(6.9), oy + s(14), OC);
+  fr(ox - s(6),   oy + s(14), ox + s(4.9), oy + s(20), OC);  // start at s(14) — no gap
+
+  // ── LEGS ──────────────────────────────────────────────────
+  // Right leg: arc 3π/4→9π/8 (lower-left of circles), i=0..4 shifts centres right.
+  // Outer boundary = leftmost circle (i=0); inner boundary = rightmost circle (i=4).
+  filledBand(
+    ox + s(0),  oy + s(25),
+    ox + s(4),  oy + s(25),
+    s(10), 3*pi/4, 9*pi/8, OC
+  );
+  // Left leg: arc 15π/8→π/4 (lower-right of circles), i=0..4 shifts centres right.
+  // Outer boundary = rightmost circle (i=4); inner boundary = leftmost circle (i=0).
+  filledBand(
+    ox - s(6) + s(3.9),  oy + s(25),
+    ox - s(6) + s(-0.1), oy + s(25),
+    s(10), 15*pi/8, pi/4, OC
+  );
+
+  // ── CHEST concave (single CIRCLE, color 0 — cuts into body) ─
+  // QBasic uses y-up math angles; Canvas uses y-down.  Negate angle + anticlockwise=true.
+  // QBasic 3π/2→0   becomes Canvas  π/2→0   CCW  (lower-right arc of left circle)
+  // QBasic  π→3π/2  becomes Canvas  π→π/2   CCW  (lower-left  arc of right circle)
+  ctx.strokeStyle = BK;
+  ctx.lineWidth   = 3;
+  ctx.beginPath();
+  ctx.arc(ox - s(4.9), oy + s(10), s(4.9), pi/2, 0,    true);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(ox + s(4.9), oy + s(10), s(4.9), pi,   pi/2, true);
+  ctx.stroke();
+
+  // ── ARMS  CASE 1: right arm raised ────────────────────────
+  // Left arm (down): arc 3π/4→5π/4 (left side of circles), i=-5..-1 shifts right.
+  // Outer = leftmost circle (i=-5); inner = rightmost circle (i=-1).
+  filledBand(
+    ox + s(-5.1), oy + s(14),
+    ox + s(-1.1), oy + s(14),
+    s(9), 3*pi/4, 5*pi/4, OC
+  );
+  // Right arm (up): arc 7π/4→π/4 (right side of circles), i=-5..-1 shifts right.
+  // Outer = rightmost circle (i=-1); inner = leftmost circle (i=-5).
+  filledBand(
+    ox + s(4.9) + s(-1), oy + s(4),
+    ox + s(4.9) + s(-5), oy + s(4),
+    s(9), 7*pi/4, pi/4, OC
+  );
 
   return cv;
 }
@@ -2032,7 +2059,7 @@ async function showSummary(name) {
   await sleep(200);
 
   addLine('');
-  await typeLine('  -- GORILLA.BAS SALUTES YOU, ' + name.toUpperCase() + '! --', 'c-green', 18);
+  await typeLine('  -- Hooray, ' + name.toUpperCase() + '! --', 'c-green', 18);
 
   const praise =
     letter === 'A' ? 'AN OUTSTANDING PERFORMANCE!  YOU ARE A TRUE DATA MASTER!' :
@@ -2041,6 +2068,9 @@ async function showSummary(name) {
                      'KEEP PRACTICING -- YOU WILL GET THERE!';
   await typeLine('  ' + praise, letter <= 'B' ? 'c-green' : 'c-cyan', 18);
 
+  const clr = document.createElement('div');
+  clr.style.clear = 'both';
+  screenEl.appendChild(clr);
   addLine('');
   await typeLine(BAR, 'c-cyan', 4);
   await typeLine('  TYPE  PLAY AGAIN  TO RESTART FROM LEVEL 1.', 'c-white');
