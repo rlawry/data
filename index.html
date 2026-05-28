@@ -1,0 +1,2048 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DATA QUEST</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0000AA;
+    color: #FFFFFF;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 17px;
+    line-height: 1.5;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  .bar {
+    background: #AAAAAA;
+    color: #000080;
+    padding: 3px 16px;
+    font-weight: bold;
+    font-size: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+    letter-spacing: .5px;
+  }
+  .bar-hint {
+    font-weight: normal;
+    font-size: 13px;
+    color: #000060;
+  }
+
+  /* ── Level 1 text area ── */
+  #screen {
+    flex: 1;
+    padding: 12px 22px 4px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+  }
+  #screen::-webkit-scrollbar { width: 0; }
+
+  .line {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    min-height: 1.5em;
+  }
+  .c-white  { color: #FFFFFF; }
+  .c-yellow { color: #FFFF55; }
+  .c-green  { color: #55FF55; }
+  .c-red    { color: #FF5555; }
+  .c-cyan   { color: #55FFFF; }
+  .c-bright { color: #FFFFFF; font-weight: bold; }
+
+  .type-cur {
+    display: inline-block;
+    width: 9px;
+    height: 15px;
+    background: #FFFFFF;
+    vertical-align: text-bottom;
+    margin-left: 1px;
+  }
+
+  /* ── Level 2 canvas ── */
+  #l2-canvas {
+    display: none;
+    flex: 1;
+    min-height: 0;
+    background: #0000AA;
+  }
+
+  /* ── Input row ── */
+  #input-row {
+    padding: 4px 22px 8px;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    min-height: 32px;
+  }
+  #prompt-glyph { color: #FFFFFF; margin-right: 6px; }
+  #echo-text    { color: #FFFF55; }
+
+  #blk-cursor {
+    display: inline-block;
+    width: 9px;
+    height: 15px;
+    background: #FFFFFF;
+    vertical-align: text-bottom;
+    margin-left: 1px;
+    opacity: 0;
+  }
+  #blk-cursor.on    { opacity: 1; }
+  #blk-cursor.blink { animation: blink .65s step-start infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  #real-input { position: fixed; top: -9999px; left: -9999px; opacity: 0; }
+
+  /* ── Level 4 animated value display ── */
+  .l4-block {
+    text-align: center;
+    border: 2px solid #2222BB;
+    background: rgba(0, 0, 55, 0.80);
+    padding: 14px 24px 12px;
+    margin: 10px 2px;
+  }
+  .l4-topic {
+    color: #55FFFF;
+    font-size: 13px;
+    letter-spacing: 3px;
+    margin-bottom: 10px;
+  }
+  .l4-numval {
+    color: #FFFF55;
+    font-size: 62px;
+    font-weight: bold;
+    line-height: 1.1;
+    transition: color .3s;
+  }
+  .l4-unitval {
+    color: #AAFFAA;
+    font-size: 30px;
+    font-weight: bold;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .l4-trend {
+    font-size: 26px;
+    margin-top: 6px;
+    transition: opacity .4s;
+  }
+
+  /* ── Level 5 graph block ── */
+  .l5-block { text-align: center; margin: 10px 0 4px; }
+  .l5-block svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+
+  /* ── Level 3 passage block (user must select text from here) ── */
+  .passage {
+    user-select: text;
+    cursor: text;
+    color: #FFFF55;
+    border-left: 3px solid #5555FF;
+    padding: 6px 12px;
+    margin: 6px 0 6px 4px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <span>&#9608;&#9608; DATA QUEST v1.0</span>
+  <span id="level-title">LEVEL 1 &mdash; TYPES OF DATA</span>
+  <span>SCORE:&nbsp;<span id="score-el">0</span>&nbsp;<span id="score-denom">/&nbsp;10</span></span>
+</div>
+
+<div id="screen"></div>
+<canvas id="l2-canvas"></canvas>
+
+<div id="input-row">
+  <span id="prompt-glyph"></span>
+  <span id="echo-text"></span>
+  <span id="blk-cursor"></span>
+</div>
+
+<div class="bar">
+  <span class="bar-hint" id="hint-left">Answers:&nbsp; qualitative &nbsp;|&nbsp; quantitative &nbsp;(or numerical) &nbsp;|&nbsp; relative</span>
+  <span class="bar-hint" id="hint-right">Press ENTER to submit</span>
+</div>
+
+<input id="real-input" type="text"
+  autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  SHARED CONSTANTS
+// ═══════════════════════════════════════════════════════════
+const CHAR_MS  = 20;
+const LINE_GAP = 55;
+const VALID    = new Set(['qualitative','quantitative','numerical','relative']);
+
+// ═══════════════════════════════════════════════════════════
+//  LEVEL 1  SCRIPT DATA
+// ═══════════════════════════════════════════════════════════
+const INTRO = [
+  {r:'c', t:'WELCOME TO DATA QUEST!'},
+  {r:'c', t:''},
+  {r:'c', t:'I AM C.O.M.P.U.T.E.R. -- YOUR DATA LEARNING GUIDE.'},
+  {r:'c', t:''},
+  {r:'c', t:'IN THIS LEVEL YOU WILL SORT DATA INTO ONE OF FOUR'},
+  {r:'c', t:'CATEGORIES.  LET ME EXPLAIN EACH ONE:'},
+  {r:'c', t:''},
+  {r:'c', t:'  QUALITATIVE  -- Describes a quality or characteristic.'},
+  {r:'c', t:'                  Think: color, texture, smell, or taste.'},
+  {r:'c', t:''},
+  {r:'c', t:'  QUANTITATIVE -- An exact number or measurement.'},
+  {r:'c', t:'                  Same as NUMERICAL -- they are interchangeable.'},
+  {r:'c', t:'                  Think: 42 kg, 98.6 degrees, 3.5 cups.'},
+  {r:'c', t:''},
+  {r:'c', t:'  NUMERICAL    -- An exact, specific number or measurement.'},
+  {r:'c', t:'                  Think: 42 students, 98.6 degrees, 2 cups.'},
+  {r:'c', t:''},
+  {r:'c', t:'  RELATIVE     -- Compares one thing directly to another.'},
+  {r:'c', t:'                  Think: taller than, faster than, more than.'},
+  {r:'c', t:''},
+  {r:'p', t:'DO YOU UNDERSTAND THE FOUR TYPES?  TYPE  YES  TO CONTINUE.'},
+];
+
+const TEACHING = [
+  {r:'c', t:'GREAT!  HERE IS ONE CLEAR EXAMPLE OF EACH TYPE:'},
+  {r:'c', t:''},
+  {r:'c', t:'  QUALITATIVE:   "The puppy has soft, fluffy white fur."'},
+  {r:'c', t:'                  SOFT, FLUFFY, and WHITE are all qualities.'},
+  {r:'c', t:''},
+  {r:'c', t:'  QUANTITATIVE:  "The car was travelling at 65 miles per hour."'},
+  {r:'c', t:'                  QUANTITATIVE = NUMERICAL.  Both mean an exact number.'},
+  {r:'c', t:''},
+  {r:'c', t:'  NUMERICAL:     "The car was travelling at 65 miles per hour."'},
+  {r:'c', t:'                  65 is a specific, exact measurement.'},
+  {r:'c', t:''},
+  {r:'c', t:'  RELATIVE:      "The red car is faster than the blue car."'},
+  {r:'c', t:'                  FASTER THAN directly compares two things.'},
+  {r:'c', t:''},
+  {r:'p', t:'DOES THAT ALL MAKE SENSE?  TYPE  READY  TO START THE QUIZ.'},
+];
+
+const QS = [
+  {
+    t:   '"The sunset was a beautiful shade of orange."',
+    ans: 'qualitative',
+    ok:  'CORRECT!  "BEAUTIFUL" AND "ORANGE" BOTH DESCRIBE QUALITIES WE OBSERVE.',
+    bad: 'NOT QUITE.  THE ANSWER IS QUALITATIVE.  COLORS AND DESCRIPTIONS ARE QUALITIES.',
+    hint:'HINT: If the sentence describes how something looks, smells, or feels -- that is QUALITATIVE.',
+  },
+  {
+    t:   '"The library holds exactly 45,823 books in its collection."',
+    ans: 'numerical',
+    ok:  t => t === 'numerical'
+           ? 'CORRECT!  45,823 IS A PRECISE, EXACT COUNT -- THAT IS NUMERICAL DATA!'
+           : 'CORRECT!  YOU SAID QUANTITATIVE -- AND THAT IS ACCEPTED.  NUMERICAL AND QUANTITATIVE ARE INTERCHANGEABLE HERE!',
+    bad: 'NOT QUITE.  THE ANSWER IS NUMERICAL (OR QUANTITATIVE) -- 45,823 IS AN EXACT, SPECIFIC NUMBER.',
+    hint:'HINT: Whenever you see a specific number, think NUMERICAL or QUANTITATIVE -- both are correct.',
+  },
+  {
+    t:   '"The coffee is hotter than the tea."',
+    ans: 'relative',
+    ok:  'CORRECT!  "HOTTER THAN" COMPARES COFFEE TO TEA -- CLASSIC RELATIVE DATA!',
+    bad: 'NOT QUITE.  THE ANSWER IS RELATIVE.  "HOTTER THAN" DIRECTLY COMPARES TWO THINGS.',
+    hint:'HINT: Look for words like "than", "more", "less", "bigger", or "faster".',
+  },
+  {
+    t:   '"Many students signed up for the science fair."',
+    ans: 'qualitative',
+    ok:  'CORRECT!  "MANY" IS A VAGUE DESCRIPTION -- NOT A PRECISE NUMBER.  THAT MAKES IT QUALITATIVE!',
+    bad: 'NOT QUITE.  THE ANSWER IS QUALITATIVE.  "MANY" DESCRIBES WITHOUT MEASURING -- IT IS NOT A NUMBER.',
+    hint:'HINT: "Many", "several", "few" describe without measuring -- they are QUALITATIVE.',
+  },
+  {
+    t:   '"The air is hot."',
+    ans: 'qualitative',
+    ok:  'CORRECT!  "HOT" DESCRIBES A QUALITY OF THE AIR -- QUALITATIVE!',
+    bad: 'NOT QUITE.  THE ANSWER IS QUALITATIVE.  "HOT" IS A SENSORY QUALITY.',
+    hint:'HINT: If the sentence describes how something feels or seems, it is likely QUALITATIVE.',
+  },
+  {
+    t:   '"The suspension bridge is 1,342 feet long."',
+    ans: 'numerical',
+    ok:  t => t === 'numerical'
+           ? 'CORRECT!  1,342 FEET IS A PRECISE MEASUREMENT -- NUMERICAL DATA!'
+           : 'CORRECT!  YOU SAID QUANTITATIVE -- ACCEPTED!  NUMERICAL AND QUANTITATIVE MEAN THE SAME THING.',
+    bad: 'NOT QUITE.  THE ANSWER IS NUMERICAL (OR QUANTITATIVE) -- 1,342 IS AN EXACT, SPECIFIC MEASUREMENT.',
+    hint:'HINT: A precise measurement with a specific number is NUMERICAL or QUANTITATIVE -- both work.',
+  },
+  {
+    t:   '"This hiking trail is more dangerous than the valley path."',
+    ans: 'relative',
+    ok:  'CORRECT!  "MORE DANGEROUS THAN" DIRECTLY COMPARES TWO TRAILS -- RELATIVE DATA!',
+    bad: 'NOT QUITE.  THE ANSWER IS RELATIVE.  "MORE DANGEROUS THAN" IS A COMPARISON.',
+    hint:'HINT: Any sentence that ranks or compares two things is RELATIVE data.',
+  },
+  {
+    t:   '"The music at the concert had a rhythmic, upbeat tempo."',
+    ans: 'qualitative',
+    ok:  'CORRECT!  "RHYTHMIC" AND "UPBEAT" DESCRIBE HOW THE MUSIC SOUNDS -- QUALITATIVE!',
+    bad: 'NOT QUITE.  THE ANSWER IS QUALITATIVE.  RHYTHMIC AND UPBEAT ARE DESCRIPTIVE QUALITIES.',
+    hint:'HINT: If it describes a feeling or sensory experience, it is likely QUALITATIVE.',
+  },
+  {
+    t:   '"Several scientists attended the international research conference."',
+    ans: 'qualitative',
+    ok:  'CORRECT!  "SEVERAL" IS A VAGUE DESCRIPTION OF QUANTITY -- NOT A PRECISE NUMBER.  QUALITATIVE!',
+    bad: 'NOT QUITE.  THE ANSWER IS QUALITATIVE.  "SEVERAL" DESCRIBES WITHOUT MEASURING -- IT IS NOT A NUMBER.',
+    hint:'HINT: "Several" describes quantity vaguely, like "many" or "a few" -- that is QUALITATIVE.',
+  },
+  {
+    t:   '"The recipe calls for 2 cups of flour and 3 eggs."',
+    ans: 'numerical',
+    ok:  t => t === 'numerical'
+           ? 'CORRECT!  2 CUPS AND 3 EGGS ARE EXACT, SPECIFIC COUNTS -- NUMERICAL DATA!'
+           : 'CORRECT!  YOU SAID QUANTITATIVE -- ALSO ACCEPTED!  NUMERICAL AND QUANTITATIVE ARE THE SAME.',
+    bad: 'NOT QUITE.  THE ANSWER IS NUMERICAL (OR QUANTITATIVE) -- 2 AND 3 ARE SPECIFIC, EXACT NUMBERS.',
+    hint:'HINT: Precise counts like 2 and 3 are NUMERICAL or QUANTITATIVE -- both are correct.',
+  },
+];
+
+// ═══════════════════════════════════════════════════════════
+//  LEVEL 2  SCRIPT DATA
+// ═══════════════════════════════════════════════════════════
+const L2_BRIEF = [
+  {r:'c', t:'LEVEL 1 COMPLETE!  WELL DONE!'},
+  {r:'c', t:''},
+  {r:'c', t:'NOW GET READY FOR LEVEL 2:'},
+  {r:'c', t:''},
+  {r:'c', t:'  ▓▓▓▓▓▓▓▓  D A T A   C A T C H E R  ▓▓▓▓▓▓▓▓'},
+  {r:'c', t:''},
+  {r:'c', t:'DATA WORDS WILL FALL FROM THE TOP OF THE SCREEN.'},
+  {r:'c', t:'I WILL TELL YOU WHICH TYPE TO CATCH.'},
+  {r:'c', t:''},
+  {r:'c', t:'MOVE YOUR BUCKET WITH THE  ←  AND  →  ARROW KEYS.'},
+  {r:'c', t:''},
+  {r:'c', t:'  CATCH THE RIGHT DATA TYPE  ......  +1 POINT'},
+  {r:'c', t:'  CATCH THE WRONG DATA TYPE  ......  -1 POINT'},
+  {r:'c', t:'  SCORE REACHES 10  ..............  NEXT ROUND'},
+  {r:'c', t:''},
+  {r:'c', t:'YOU WILL CYCLE THROUGH ALL FOUR DATA TYPES.'},
+  {r:'c', t:'REMEMBER -- NUMERICAL AND QUANTITATIVE ARE THE SAME!'},
+  {r:'c', t:''},
+  {r:'p', t:'TYPE  READY  TO BEGIN LEVEL 2!'},
+];
+
+// ═══════════════════════════════════════════════════════════
+//  LEVEL 2  FALLING-ITEM DATA POOLS  (20 items each)
+// ═══════════════════════════════════════════════════════════
+const L2_POOLS = {
+  // qualitative: descriptive words AND vague quantity words (not precise numbers)
+  qualitative:  [
+    'hot','cold','smooth','rough','sweet','bitter',
+    'bright','dark','loud','quiet','fluffy','soft',
+    'warm','cool','bumpy','fragrant',
+    'many','few','several','some','numerous','plenty',
+    'a lot','a handful','countless','various',
+  ],
+  // numerical: exact numbers with units
+  numerical:    [
+    '42 kg','7 mph','98.6°F','100 m','15 lbs','3.5 cm',
+    '72°F','1342 ft','2 cups','5 miles','24 hrs','365 days',
+    '8.5 in','60 sec','1000 W','3 oz','50 km','212°F','9.8 m/s','3.14',
+  ],
+  relative:     [
+    'taller','faster','heavier','brighter','louder','softer',
+    'hotter','colder','bigger','smaller','longer','deeper',
+    'stronger','lighter','wider','sweeter','quieter','harder','slower','younger',
+  ],
+  // quantitative = same as numerical (they are interchangeable)
+  quantitative: [
+    '42 kg','7 mph','98.6°F','100 m','15 lbs','3.5 cm',
+    '72°F','1342 ft','2 cups','5 miles','24 hrs','365 days',
+    '8.5 in','60 sec','1000 W','3 oz','50 km','212°F','9.8 m/s','3.14',
+  ],
+};
+
+const L2_ROUND_ORDER = ['qualitative','numerical','relative','quantitative'];
+
+const L2_ROUND_LABELS = {
+  qualitative:  'QUALITATIVE — descriptive words (including vague amounts)',
+  numerical:    'NUMERICAL — exact numbers & units',
+  relative:     'RELATIVE — comparison words',
+  quantitative: 'QUANTITATIVE — exact numbers & units  (= NUMERICAL)',
+};
+
+// ═══════════════════════════════════════════════════════════
+//  LEVEL 3  DATA
+// ═══════════════════════════════════════════════════════════
+const L3_BRIEF = [
+  {r:'c', t:'OUTSTANDING!  LEVEL 2 COMPLETE!'},
+  {r:'c', t:''},
+  {r:'c', t:'NOW GET READY FOR LEVEL 3:'},
+  {r:'c', t:''},
+  {r:'c', t:'  ▓▓▓▓▓▓▓  E V I D E N C E   H U N T  ▓▓▓▓▓▓▓'},
+  {r:'c', t:''},
+  {r:'c', t:'I WILL SHOW YOU A PASSAGE OF TEXT.'},
+  {r:'c', t:'I WILL THEN ASK YOU TO FIND A SPECIFIC TYPE OF DATA EVIDENCE.'},
+  {r:'c', t:''},
+  {r:'c', t:'YOUR JOB:'},
+  {r:'c', t:'  1.  READ THE HIGHLIGHTED PASSAGE CAREFULLY.'},
+  {r:'c', t:'  2.  USE YOUR MOUSE TO SELECT ONLY THE EVIDENCE TEXT.'},
+  {r:'c', t:'  3.  COPY IT  (CTRL+C  or right-click Copy).'},
+  {r:'c', t:'  4.  CLICK THE INPUT AREA BELOW AND PASTE  (CTRL+V).'},
+  {r:'c', t:'  5.  PRESS ENTER TO SUBMIT YOUR ANSWER.'},
+  {r:'c', t:''},
+  {r:'c', t:'COPY ONLY THE EVIDENCE -- NOT THE WHOLE PASSAGE!'},
+  {r:'c', t:'YOUR PASTED TEXT MUST MATCH WHAT IS IN THE PASSAGE.'},
+  {r:'c', t:''},
+  {r:'p', t:'TYPE  READY  TO BEGIN LEVEL 3!'},
+];
+
+const L3_PASSAGES = [
+  {
+    passage: 'Researchers tracked the migration of monarch butterflies across three seasons. In the final year of the study, the colony traveled 3,214 miles from Canada to their wintering grounds in Mexico. The butterflies moved in dense, shimmering clouds that blocked the afternoon sun.',
+    type: 'NUMERICAL',
+    ask: 'Identify the NUMERICAL evidence in the passage.',
+    answer: '3,214 miles',
+    hint: 'HINT: Find the specific distance measurement -- a number followed by a unit.',
+  },
+  {
+    passage: "The chef's signature dish arrived at the table still steaming. The broth was rich and velvety, the noodles were silky and tender, and a soft-boiled egg had been sliced to reveal a perfectly golden yolk. Several diners ordered a second bowl before the evening was over.",
+    type: 'QUALITATIVE',
+    ask: 'Identify the QUALITATIVE description of the broth in the passage.',
+    answer: 'rich and velvety',
+    hint: 'HINT: Find the words that describe the taste or texture of the broth.',
+  },
+  {
+    passage: "The town's new water tower holds 500,000 gallons, which is significantly more than the old tower that was demolished last spring. Engineers said the new structure is also stronger and more resistant to corrosion than any tower built in the county before 1990.",
+    type: 'RELATIVE',
+    ask: 'Identify the RELATIVE evidence comparing the two water towers.',
+    answer: 'significantly more than the old tower that was demolished last spring',
+    hint: 'HINT: Find the full phrase that directly compares the new tower\'s capacity to the old one.',
+  },
+  {
+    passage: 'Volunteers described the rescued animals as malnourished and frightened, with dull coats and hollow eyes. Within two weeks of proper care, most had become playful and bright-eyed, and their fur grew soft and thick again.',
+    type: 'QUALITATIVE',
+    ask: 'Identify the QUALITATIVE description of the animals after their recovery.',
+    answer: 'playful and bright-eyed',
+    hint: 'HINT: Find the descriptive words that show how the animals appeared after two weeks of care.',
+  },
+  {
+    passage: 'The Great Wall of China stretches approximately 13,170 miles in total length. Built over many centuries, it winds through rugged and dramatic terrain across northern China, and is widely considered one of the most impressive construction feats in human history.',
+    type: 'NUMERICAL',
+    ask: 'Identify the NUMERICAL evidence in the passage.',
+    answer: '13,170 miles',
+    hint: 'HINT: Find the specific measurement that describes the wall\'s total length.',
+  },
+  {
+    passage: 'Early reviews praised the new electric vehicle for its near-silent engine and sleek interior. Testers noted that it accelerates faster than a sports car and handles corners more smoothly than any comparable model in its class. Its battery range is rated at 412 miles per charge.',
+    type: 'RELATIVE',
+    ask: 'Identify the RELATIVE evidence about the vehicle\'s acceleration.',
+    answer: 'faster than a sports car',
+    hint: 'HINT: Find the phrase that compares the vehicle\'s acceleration to something else.',
+  },
+];
+
+// ═══════════════════════════════════════════════════════════
+//  LEVEL 4  DATA
+// ═══════════════════════════════════════════════════════════
+const L4_BRIEF = [
+  {r:'c', t:'EXCELLENT!  LEVEL 3 COMPLETE!'},
+  {r:'c', t:''},
+  {r:'c', t:'NOW GET READY FOR LEVEL 4:'},
+  {r:'c', t:''},
+  {r:'c', t:'  ▓▓▓▓  O B S E R V E  &  C L A S S I F Y  ▓▓▓▓'},
+  {r:'c', t:''},
+  {r:'c', t:'YOU WILL SEE AN EARTH SCIENCE VALUE CHANGE'},
+  {r:'c', t:'RIGHT BEFORE YOUR EYES.'},
+  {r:'c', t:''},
+  {r:'c', t:'PAY CLOSE ATTENTION TO WHAT CHANGES!'},
+  {r:'c', t:''},
+  {r:'c', t:'THEN I WILL GIVE YOU TWO STATEMENTS ABOUT THE CHANGE.'},
+  {r:'c', t:'ONE IS QUALITATIVE.  ONE IS QUANTITATIVE.'},
+  {r:'c', t:'YOU MUST CHOOSE THE ONE I ASK FOR.'},
+  {r:'c', t:''},
+  {r:'c', t:'TYPE  A  OR  B  TO SELECT YOUR ANSWER.'},
+  {r:'c', t:''},
+  {r:'p', t:'TYPE  READY  TO BEGIN LEVEL 4!'},
+];
+
+const L4_SCENARIOS = [
+  {
+    topic:   'ATMOSPHERIC TEMPERATURE',
+    context: 'A cold front swept through the Midwest overnight.',
+    from: 72,   to: 45,   unit: '°F',  decimals: 0,
+    question: 'Which statement describes the QUALITATIVE change?',
+    A: { text: 'The temperature became significantly colder.',     isQual: true  },
+    B: { text: 'The temperature dropped by 27°F.',                isQual: false },
+    correct: 'A',
+    explain: '"Became significantly colder" DESCRIBES the change without a number -- QUALITATIVE.',
+  },
+  {
+    topic:   'GLOBAL SEA LEVEL',
+    context: 'Scientists measured sea level rise over a 12-month period.',
+    from: 0.0,  to: 3.6,  unit: ' mm', decimals: 1,
+    question: 'Which statement describes the QUANTITATIVE change?',
+    A: { text: 'Sea levels rose at an alarming rate.',             isQual: true  },
+    B: { text: 'Sea level increased by 3.6 mm in one year.',      isQual: false },
+    correct: 'B',
+    explain: '"3.6 mm" is a precise, exact measurement -- QUANTITATIVE.',
+  },
+  {
+    topic:   'WIND SPEED — TROPICAL STORM',
+    context: 'A tropical storm rapidly intensified over warm ocean water.',
+    from: 15,   to: 95,   unit: ' mph', decimals: 0,
+    question: 'Which statement describes the QUALITATIVE change?',
+    A: { text: 'Wind speed increased by 80 mph.',                 isQual: false },
+    B: { text: 'The storm became extremely powerful and dangerous.', isQual: true },
+    correct: 'B',
+    explain: '"Extremely powerful and dangerous" DESCRIBES the storm -- QUALITATIVE.',
+  },
+  {
+    topic:   'ATMOSPHERIC CO₂',
+    context: 'Carbon dioxide concentrations were recorded three decades apart.',
+    from: 315,  to: 421,  unit: ' ppm', decimals: 0,
+    question: 'Which statement describes the QUANTITATIVE change?',
+    A: { text: 'Atmospheric CO₂ increased by 106 ppm over three decades.', isQual: false },
+    B: { text: 'The atmosphere became more polluted with greenhouse gases.', isQual: true },
+    correct: 'A',
+    explain: '"Increased by 106 ppm" gives an exact number -- QUANTITATIVE.',
+  },
+  {
+    topic:   'EARTHQUAKE MAGNITUDE',
+    context: 'Seismic activity escalated along the Pacific Ring of Fire.',
+    from: 2.1,  to: 7.8,  unit: ' M',  decimals: 1,
+    question: 'Which statement describes the QUALITATIVE change?',
+    A: { text: 'Earthquake magnitude increased by 5.7 on the Richter scale.', isQual: false },
+    B: { text: 'The earthquake went from minor tremors to a catastrophic event.', isQual: true },
+    correct: 'B',
+    explain: '"Minor tremors to catastrophic" DESCRIBES the change -- QUALITATIVE.',
+  },
+  {
+    topic:   'OCEAN pH LEVEL',
+    context: 'Ocean acidity was measured before and after a large algal bloom.',
+    from: 8.20, to: 8.05, unit: ' pH', decimals: 2,
+    question: 'Which statement describes the QUANTITATIVE change?',
+    A: { text: 'The ocean became more acidic and harmful to marine life.', isQual: true  },
+    B: { text: 'Ocean pH decreased by 0.15 units, indicating increased acidity.', isQual: false },
+    correct: 'B',
+    explain: '"Decreased by 0.15 units" is a precise measurement -- QUANTITATIVE.',
+  },
+];
+
+// ═══════════════════════════════════════════════════════════
+//  LEVEL 5  DATA
+// ═══════════════════════════════════════════════════════════
+const L5_BRIEF = [
+  {r:'c', t:'OUTSTANDING!  LEVEL 4 COMPLETE!'},
+  {r:'c', t:''},
+  {r:'c', t:'NOW GET READY FOR LEVEL 5:'},
+  {r:'c', t:''},
+  {r:'c', t:'  ▓▓▓▓  G R A P H  &  C L A S S I F Y  ▓▓▓▓'},
+  {r:'c', t:''},
+  {r:'c', t:'YOU WILL SEE A SCATTERPLOT WITH A TRENDLINE.'},
+  {r:'c', t:'EACH GRAPH SHOWS TWO EARTH & SPACE SCIENCE VARIABLES.'},
+  {r:'c', t:''},
+  {r:'c', t:'STUDY THE GRAPH -- LOOK AT THE AXES AND THE TREND.'},
+  {r:'c', t:''},
+  {r:'c', t:'THEN I WILL GIVE YOU TWO STATEMENTS ABOUT THE RELATIONSHIP.'},
+  {r:'c', t:'ONE IS QUALITATIVE.  ONE IS QUANTITATIVE.'},
+  {r:'c', t:'YOU MUST CHOOSE THE ONE I ASK FOR.'},
+  {r:'c', t:''},
+  {r:'c', t:'TYPE  A  OR  B  TO SELECT YOUR ANSWER.'},
+  {r:'c', t:''},
+  {r:'p', t:'TYPE  READY  TO BEGIN LEVEL 5!'},
+];
+
+const L5_GRAPHS = [
+  // ── 1  POSITIVE LINEAR NON-PROPORTIONAL ─────────────────
+  {
+    title:    'ALTITUDE vs. WIND SPEED',
+    xLabel:   'Altitude (km)',
+    yLabel:   'Wind Speed (km/h)',
+    typeLabel:'↗ POS. LINEAR NON-PROP.',
+    xMin:0, xMax:12, yMin:0, yMax:200,
+    context: 'Meteorologists measured upper-atmosphere wind speeds at increasing altitudes over the Great Plains.',
+    points:[
+      {x:0.5,y:30},{x:1,y:36},{x:2,y:50},{x:2.5,y:56},
+      {x:3,y:62},{x:4,y:74},{x:5,y:89},{x:6,y:99},
+      {x:7,y:113},{x:8,y:124},{x:9,y:141},{x:10,y:153},
+      {x:11,y:164},{x:12,y:179}
+    ],
+    trendFn: x => 13*x + 22,
+    question: 'Which statement QUANTITATIVELY describes this relationship?',
+    A: { text: 'Wind speed increases by approximately 13 km/h for every kilometer of altitude gained.', isQual: false },
+    B: { text: 'As altitude increases, wind tends to blow considerably faster.', isQual: true },
+    correct: 'A',
+    explain: '"~13 km/h per km" gives a precise rate of change — QUANTITATIVE.',
+  },
+  // ── 2  NEGATIVE LINEAR NON-PROPORTIONAL ─────────────────
+  {
+    title:    'ALTITUDE vs. AIR PRESSURE',
+    xLabel:   'Altitude (km)',
+    yLabel:   'Air Pressure (hPa)',
+    typeLabel:'↘ NEG. LINEAR NON-PROP.',
+    xMin:0, xMax:10, yMin:100, yMax:1050,
+    context: 'A weather balloon recorded atmospheric pressure as it ascended through the troposphere.',
+    points:[
+      {x:0,y:1013},{x:0.5,y:968},{x:1,y:922},{x:2,y:835},
+      {x:3,y:743},{x:4,y:651},{x:5,y:549},{x:6,y:465},
+      {x:7,y:381},{x:8,y:305},{x:9,y:224},{x:10,y:152}
+    ],
+    trendFn: x => -91*x + 1013,
+    question: 'Which statement QUALITATIVELY describes this relationship?',
+    A: { text: 'Air pressure decreases by approximately 91 hPa for every kilometer of altitude gained.', isQual: false },
+    B: { text: 'The higher the altitude, the less atmospheric pressure you experience.', isQual: true },
+    correct: 'B',
+    explain: '"Less pressure at higher altitude" is a general description — QUALITATIVE.',
+  },
+  // ── 3  PROPORTIONAL ─────────────────────────────────────
+  {
+    title:    'TIME vs. SEISMIC WAVE DISTANCE',
+    xLabel:   'Time (min)',
+    yLabel:   'Distance (km)',
+    typeLabel:'↗ PROPORTIONAL',
+    xMin:0, xMax:10, yMin:0, yMax:3800,
+    context: 'Seismographs at different distances from an earthquake epicenter recorded wave arrival times.',
+    points:[
+      {x:0.5,y:191},{x:1,y:368},{x:1.5,y:535},{x:2,y:726},
+      {x:3,y:1065},{x:4,y:1422},{x:5,y:1800},{x:6,y:2148},
+      {x:7,y:2519},{x:8,y:2872},{x:9,y:3248},{x:10,y:3582}
+    ],
+    trendFn: x => 360*x,
+    question: 'Which statement QUANTITATIVELY describes this relationship?',
+    A: { text: 'The farther the earthquake, the longer it takes for the seismic wave to arrive.', isQual: true },
+    B: { text: 'Seismic waves travel approximately 360 km for every minute elapsed.', isQual: false },
+    correct: 'B',
+    explain: '"360 km per minute" is a precise rate — QUANTITATIVE.',
+  },
+  // ── 4  NONLINEAR NON-PROPORTIONAL ───────────────────────
+  {
+    title:    'DISTANCE FROM SUN vs. ORBITAL PERIOD',
+    xLabel:   'Distance (AU)',
+    yLabel:   'Orbital Period (years)',
+    typeLabel:'⌒ NONLINEAR NON-PROP.',
+    xMin:0, xMax:32, yMin:0, yMax:175,
+    context: "Astronomers plotted each planet's average distance from the Sun against its orbital period.",
+    points:[
+      {x:0.39,y:0.24},{x:0.72,y:0.62},{x:1.0,y:1.0},{x:1.52,y:1.88},
+      {x:5.2,y:11.9},{x:9.5,y:29.5},{x:19.2,y:84},{x:30.1,y:165}
+    ],
+    trendFn: x => Math.pow(x, 1.5),
+    question: 'Which statement QUALITATIVELY describes this relationship?',
+    A: { text: 'A planet at 4 AU from the Sun completes one orbit in exactly 8 years.', isQual: false },
+    B: { text: 'The farther a planet orbits from the Sun, the longer its year becomes.', isQual: true },
+    correct: 'B',
+    explain: '"Longer year farther from the Sun" is a general description — QUALITATIVE.',
+  },
+  // ── 5  NEGATIVE LINEAR NON-PROPORTIONAL ─────────────────
+  {
+    title:    'DISTANCE FROM COAST vs. ANNUAL RAINFALL',
+    xLabel:   'Distance from Coast (km)',
+    yLabel:   'Annual Rainfall (mm)',
+    typeLabel:'↘ NEG. LINEAR NON-PROP.',
+    xMin:0, xMax:500, yMin:100, yMax:1250,
+    context: 'Climatologists measured average annual rainfall at weather stations placed inland at increasing distances.',
+    points:[
+      {x:10,y:1130},{x:25,y:1103},{x:50,y:1050},{x:75,y:1002},
+      {x:100,y:953},{x:150,y:848},{x:200,y:762},{x:250,y:648},
+      {x:300,y:555},{x:350,y:452},{x:400,y:342},{x:450,y:264},
+      {x:490,y:194}
+    ],
+    trendFn: x => -2.1*x + 1150,
+    question: 'Which statement QUANTITATIVELY describes this relationship?',
+    A: { text: 'Annual rainfall drops by approximately 2 mm for every kilometer inland from the coast.', isQual: false },
+    B: { text: 'Locations farther from the ocean tend to receive considerably less rainfall each year.', isQual: true },
+    correct: 'A',
+    explain: '"~2 mm per km" is a precise rate of change — QUANTITATIVE.',
+  },
+  // ── 6  PROPORTIONAL ─────────────────────────────────────
+  {
+    title:    'CO₂ RISE vs. TEMPERATURE ANOMALY',
+    xLabel:   'CO₂ Above Preindustrial (ppm)',
+    yLabel:   'Temp. Anomaly (°C)',
+    typeLabel:'↗ PROPORTIONAL',
+    xMin:0, xMax:210, yMin:0, yMax:2.0,
+    context: 'Climate scientists compared rising CO₂ concentrations with measured global temperature anomalies.',
+    points:[
+      {x:10,y:0.10},{x:25,y:0.21},{x:45,y:0.40},{x:65,y:0.60},
+      {x:80,y:0.71},{x:100,y:0.91},{x:120,y:1.07},{x:140,y:1.28},
+      {x:160,y:1.43},{x:180,y:1.63},{x:200,y:1.82}
+    ],
+    trendFn: x => 0.009*x,
+    question: 'Which statement QUALITATIVELY describes this relationship?',
+    A: { text: 'Each additional 100 ppm of CO₂ above preindustrial levels corresponds to roughly 0.9°C of warming.', isQual: false },
+    B: { text: 'Higher atmospheric CO₂ concentrations are associated with warmer global temperatures.', isQual: true },
+    correct: 'B',
+    explain: '"Associated with warmer temperatures" is a general description — QUALITATIVE.',
+  },
+  // ── 7  NONLINEAR NON-PROPORTIONAL ───────────────────────
+  {
+    title:    'YEARS AFTER ERUPTION vs. SPECIES COUNT',
+    xLabel:   'Years After Eruption',
+    yLabel:   'Species Count',
+    typeLabel:'⌒ NONLINEAR NON-PROP.',
+    xMin:0, xMax:80, yMin:0, yMax:130,
+    context: 'Ecologists tracked species recovery on a volcanic island after a major eruption destroyed all life.',
+    points:[
+      {x:2,y:13},{x:5,y:28},{x:10,y:45},{x:15,y:60},
+      {x:20,y:71},{x:25,y:84},{x:30,y:90},{x:40,y:97},
+      {x:50,y:103},{x:60,y:108},{x:70,y:106},{x:80,y:110}
+    ],
+    trendFn: x => 110*(1 - Math.exp(-0.055*x)),
+    question: 'Which statement QUANTITATIVELY describes this relationship?',
+    A: { text: 'Species diversity increases rapidly at first, then gradually levels off over time.', isQual: true },
+    B: { text: 'By year 30, approximately 90 species have returned to the volcanic island.', isQual: false },
+    correct: 'B',
+    explain: '"Approximately 90 species by year 30" is a precise count at a specific time — QUANTITATIVE.',
+  },
+  // ── 8  POSITIVE LINEAR NON-PROPORTIONAL ─────────────────
+  {
+    title:    'SOIL DEPTH vs. CARBON STORAGE',
+    xLabel:   'Soil Depth (cm)',
+    yLabel:   'Carbon Storage (kg/m²)',
+    typeLabel:'↗ POS. LINEAR NON-PROP.',
+    xMin:0, xMax:60, yMin:0, yMax:16,
+    context: 'Soil scientists measured organic carbon stored in soil samples taken at increasing depths across a grassland.',
+    points:[
+      {x:2,y:1.3},{x:5,y:2.0},{x:8,y:2.6},{x:12,y:3.6},
+      {x:15,y:4.1},{x:20,y:5.2},{x:25,y:6.4},{x:30,y:7.5},
+      {x:35,y:8.6},{x:40,y:9.8},{x:45,y:10.8},{x:50,y:11.9},
+      {x:55,y:13.0},{x:60,y:14.1}
+    ],
+    trendFn: x => 0.22*x + 0.9,
+    question: 'Which statement QUANTITATIVELY describes this relationship?',
+    A: { text: 'Carbon storage increases by approximately 0.22 kg/m² for each additional centimeter of soil depth.', isQual: false },
+    B: { text: 'Deeper soil layers generally store more organic carbon than shallow soils.', isQual: true },
+    correct: 'A',
+    explain: '"~0.22 kg/m² per cm" is a precise rate of change — QUANTITATIVE.',
+  },
+];
+
+// ═══════════════════════════════════════════════════════════
+//  SHARED STATE
+// ═══════════════════════════════════════════════════════════
+let phase      = 'intro';
+let qIdx       = 0;
+let score      = 0;
+let inputLive  = false;
+let currentTxt = '';
+let inLevel2   = false;
+let l3Idx      = 0;
+let l3Score    = 0;
+let l4Idx      = 0;
+let l4Score    = 0;
+let l5Idx      = 0;
+let l5Score    = 0;
+let playerName = '';
+
+// ═══════════════════════════════════════════════════════════
+//  DOM REFS
+// ═══════════════════════════════════════════════════════════
+const screenEl    = document.getElementById('screen');
+const canvasEl    = document.getElementById('l2-canvas');
+const inputRowEl  = document.getElementById('input-row');
+const glyphEl     = document.getElementById('prompt-glyph');
+const echoEl      = document.getElementById('echo-text');
+const cursorEl    = document.getElementById('blk-cursor');
+const scoreEl     = document.getElementById('score-el');
+const scoreDenom  = document.getElementById('score-denom');
+const levelTitle  = document.getElementById('level-title');
+const hintLeft    = document.getElementById('hint-left');
+const hintRight   = document.getElementById('hint-right');
+const realInput   = document.getElementById('real-input');
+
+// ═══════════════════════════════════════════════════════════
+//  LEVEL 1 HELPERS
+// ═══════════════════════════════════════════════════════════
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function addLine(text, cls = 'c-white') {
+  const d = document.createElement('div');
+  d.className = 'line ' + cls;
+  d.textContent = text === '' ? ' ' : text;
+  screenEl.appendChild(d);
+  screenEl.scrollTop = screenEl.scrollHeight;
+  return d;
+}
+
+async function typeLine(text, cls = 'c-white', speed = CHAR_MS) {
+  if (text === '') { addLine(''); await sleep(LINE_GAP); return; }
+  const d  = document.createElement('div');
+  d.className = 'line ' + cls;
+  const ts = document.createElement('span');
+  const cs = document.createElement('span');
+  cs.className = 'type-cur';
+  d.appendChild(ts);
+  d.appendChild(cs);
+  screenEl.appendChild(d);
+  for (let i = 0; i < text.length; i++) {
+    ts.textContent += text[i];
+    screenEl.scrollTop = screenEl.scrollHeight;
+    await sleep(speed);
+  }
+  d.removeChild(cs);
+  await sleep(LINE_GAP);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  INPUT CONTROL
+// ═══════════════════════════════════════════════════════════
+function openInput(glyph = '>') {
+  inputLive = true;
+  currentTxt = '';
+  glyphEl.textContent = glyph + ' ';
+  echoEl.textContent  = '';
+  cursorEl.className  = 'blink on';
+  realInput.value     = '';
+  realInput.focus();
+}
+function closeInput() {
+  inputLive = false;
+  glyphEl.textContent = '';
+  echoEl.textContent  = '';
+  cursorEl.className  = '';
+}
+
+realInput.addEventListener('keydown', e => {
+  if (inLevel2 || !inputLive) return;
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const val = currentTxt.trim();
+    if (!val) return;
+    closeInput();
+    handleInput(val);
+  } else if (e.key === 'Backspace') {
+    currentTxt = currentTxt.slice(0, -1);
+    echoEl.textContent = currentTxt;
+  } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && currentTxt.length < 300) {
+    currentTxt += e.key;
+    echoEl.textContent = currentTxt;
+  }
+});
+
+document.addEventListener('click', e => {
+  if (!inLevel2 && inputLive && !e.target.closest('.passage')) realInput.focus();
+});
+
+// Paste support — document-level so it fires even when realInput isn't focused.
+// This is critical for Level 3: user selects passage text, Ctrl+C, then Ctrl+V
+// anywhere on the page to submit without needing to click into the input first.
+document.addEventListener('paste', e => {
+  if (inLevel2 || !inputLive) return;
+  e.preventDefault();
+  const pasted = (e.clipboardData || window.clipboardData).getData('text');
+  currentTxt = pasted.replace(/\s+/g, ' ').trim().slice(0, 300);
+  echoEl.textContent = currentTxt;
+  realInput.focus();   // focus so Enter key submission works immediately
+});
+
+// ═══════════════════════════════════════════════════════════
+//  SCRIPT RUNNER
+// ═══════════════════════════════════════════════════════════
+async function runScript(lines) {
+  for (const ln of lines) {
+    if (ln.r === 'c')      { await typeLine(ln.t, 'c-white'); }
+    else if (ln.r === 'p') { await typeLine(ln.t, 'c-cyan'); break; }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  INPUT HANDLER
+// ═══════════════════════════════════════════════════════════
+async function handleInput(raw) {
+  const lo = raw.toLowerCase().trim();
+
+  if (phase === 'intro') {
+    addLine('> ' + raw.toUpperCase(), 'c-yellow');
+    addLine('');
+    if (/^(yes|y|yep|yeah|ok|sure|alright|got it|i do)$/i.test(lo)) {
+      phase = 'teaching';
+      await runScript(TEACHING);
+      openInput();
+    } else {
+      await typeLine('PLEASE TYPE  YES  WHEN YOU ARE READY.', 'c-cyan');
+      openInput();
+    }
+
+  } else if (phase === 'teaching') {
+    addLine('> ' + raw.toUpperCase(), 'c-yellow');
+    addLine('');
+    if (/^(ready|yes|ok|go|sure|let.?s go|start|begin)$/i.test(lo)) {
+      phase = 'playing';
+      await typeLine('EXCELLENT!  HERE COME YOUR 10 EXAMPLES.  GOOD LUCK!', 'c-white');
+      addLine('');
+      await askQ();
+    } else {
+      await typeLine('TYPE  READY  WHEN YOU WANT TO START THE QUIZ!', 'c-cyan');
+      openInput();
+    }
+
+  } else if (phase === 'playing') {
+    addLine('> ' + raw.toUpperCase(), 'c-yellow');
+    addLine('');
+    if (!VALID.has(lo)) {
+      await typeLine('PLEASE TYPE ONE OF THE VALID ANSWERS:', 'c-cyan');
+      await typeLine('  qualitative  |  quantitative / numerical  |  relative', 'c-cyan');
+      openInput();
+      return;
+    }
+    const normalize = v => (v === 'numerical' ? 'quantitative' : v);
+    const q = QS[qIdx];
+    const okMsg  = typeof q.ok  === 'function' ? q.ok(lo)  : q.ok;
+    const badMsg = typeof q.bad === 'function' ? q.bad(lo) : q.bad;
+    if (normalize(lo) === normalize(q.ans)) {
+      score++;
+      scoreEl.textContent = score;
+      await typeLine(okMsg, 'c-green');
+    } else {
+      await typeLine(badMsg, 'c-red');
+      await typeLine(q.hint, 'c-cyan');
+    }
+    qIdx++;
+    if (qIdx >= QS.length) { await endGame(); }
+    else { addLine(''); await askQ(); }
+
+  } else if (phase === 'done') {
+    addLine('> ' + raw.toUpperCase(), 'c-yellow');
+    addLine('');
+    if (/^(level.?2|next|continue|l2)$/i.test(lo)) {
+      phase = 'l2-brief';
+      await runScript(L2_BRIEF);
+      openInput();
+    } else if (/^(play.?again|restart|again|new.?game|retry)$/i.test(lo)) {
+      resetGame();
+    } else {
+      await typeLine('TYPE  LEVEL 2  to play Data Catcher, or  PLAY AGAIN  to restart.', 'c-cyan');
+      openInput();
+    }
+
+  } else if (phase === 'l2-brief') {
+    addLine('> ' + raw.toUpperCase(), 'c-yellow');
+    addLine('');
+    if (/^(ready|yes|ok|go|start|begin|let.?s go)$/i.test(lo)) {
+      closeInput();
+      await sleep(300);
+      startLevel2();
+    } else {
+      await typeLine('TYPE  READY  TO BEGIN LEVEL 2!', 'c-cyan');
+      openInput();
+    }
+
+  } else if (phase === 'l3-brief') {
+    addLine('> ' + raw.toUpperCase(), 'c-yellow');
+    addLine('');
+    if (/^(ready|yes|ok|go|start|begin|let.?s go)$/i.test(lo)) {
+      phase = 'l3-playing';
+      l3Idx = 0; l3Score = 0;
+      scoreEl.textContent  = '0';
+      scoreDenom.textContent = `/ ${L3_PASSAGES.length}`;
+      await typeLine('EXCELLENT!  HERE IS YOUR FIRST PASSAGE.', 'c-white');
+      addLine('');
+      await l3AskQ();
+    } else {
+      await typeLine('TYPE  READY  TO BEGIN LEVEL 3!', 'c-cyan');
+      openInput();
+    }
+
+  } else if (phase === 'l3-playing') {
+    const display = raw.length > 60 ? raw.slice(0, 57) + '...' : raw;
+    addLine('> ' + display, 'c-yellow');
+    addLine('');
+    const q = L3_PASSAGES[l3Idx];
+
+    if (l3CheckAnswer(raw, q.answer)) {
+      l3Score++;
+      scoreEl.textContent = l3Score;
+      await typeLine('CORRECT!  THAT IS THE ' + q.type + ' EVIDENCE!', 'c-green');
+      await typeLine('"' + q.answer + '"', 'c-green', 14);
+      l3Idx++;
+      if (l3Idx >= L3_PASSAGES.length) {
+        await l3EndGame();
+      } else {
+        addLine('');
+        await sleep(400);
+        await l3AskQ();
+      }
+    } else {
+      const err = l3ClassifyError(raw, q);
+      if (err === 'overload') {
+        await typeLine('MEMORY OVERLOAD!', 'c-red', 30);
+        await typeLine('YOU SELECTED THE ENTIRE PASSAGE.', 'c-red');
+        await typeLine('REDUCE YOUR SELECTION -- COPY ONLY THE EVIDENCE PHRASE.', 'c-cyan');
+      } else if (err === 'too-many') {
+        await typeLine('YOU HAVE SELECTED TOO MANY WORDS!', 'c-red', 25);
+        await typeLine('SELECT ONLY THE ' + q.type + ' EVIDENCE -- A SHORTER PHRASE.', 'c-cyan');
+      } else {
+        await typeLine('DOES NOT COMPUTE!', 'c-red', 30);
+        await typeLine('THAT IS NOT THE ' + q.type + ' EVIDENCE.', 'c-red');
+        await typeLine(q.hint, 'c-cyan');
+      }
+      await typeLine('RE-READ THE PASSAGE AND TRY AGAIN.', 'c-white');
+      openInput('>');
+    }
+
+  } else if (phase === 'done-l3') {
+    addLine('> ' + raw.toUpperCase(), 'c-yellow');
+    addLine('');
+    if (/^(level.?4|next|continue|l4)$/i.test(lo)) {
+      phase = 'l4-brief';
+      levelTitle.textContent  = 'LEVEL 4 — OBSERVE & CLASSIFY';
+      hintLeft.textContent    = 'Watch the value change, then type  A  or  B';
+      hintRight.textContent   = 'Pay close attention!';
+      scoreEl.textContent     = '0';
+      scoreDenom.textContent  = `/ ${L4_SCENARIOS.length}`;
+      await runScript(L4_BRIEF);
+      openInput();
+    } else if (/^(play.?again|restart|again|new.?game|retry)$/i.test(lo)) {
+      resetGame();
+    } else {
+      await typeLine('TYPE  LEVEL 4  to continue, or  PLAY AGAIN  to restart.', 'c-cyan');
+      openInput();
+    }
+
+  } else if (phase === 'l4-brief') {
+    addLine('> ' + raw.toUpperCase(), 'c-yellow');
+    addLine('');
+    if (/^(ready|yes|ok|go|start|begin|let.?s go)$/i.test(lo)) {
+      phase = 'l4-playing';
+      l4Idx = 0; l4Score = 0;
+      scoreEl.textContent = '0';
+      await l4RunScenario();
+    } else {
+      await typeLine('TYPE  READY  TO BEGIN LEVEL 4!', 'c-cyan');
+      openInput();
+    }
+
+  } else if (phase === 'l4-playing') {
+    addLine('> ' + raw.toUpperCase(), 'c-yellow');
+    addLine('');
+    if (lo !== 'a' && lo !== 'b') {
+      await typeLine('PLEASE TYPE  A  OR  B  TO SELECT YOUR ANSWER.', 'c-cyan');
+      openInput('>');
+      return;
+    }
+    const s = L4_SCENARIOS[l4Idx];
+    if (lo.toUpperCase() === s.correct) {
+      l4Score++;
+      scoreEl.textContent = l4Score;
+      await typeLine('CORRECT!  ' + s.explain, 'c-green');
+    } else {
+      await typeLine('DOES NOT COMPUTE!  ' + s.explain, 'c-red');
+      await typeLine('CORRECT ANSWER WAS  ' + s.correct + ':  "' + s[s.correct].text + '"', 'c-cyan', 16);
+    }
+    l4Idx++;
+    if (l4Idx >= L4_SCENARIOS.length) {
+      await l4EndGame();
+    } else {
+      addLine('');
+      await sleep(600);
+      await l4RunScenario();
+    }
+
+  } else if (phase === 'done-l4') {
+    addLine('> ' + raw.toUpperCase(), 'c-yellow');
+    addLine('');
+    if (/^(level.?5|next|continue|l5)$/i.test(lo)) {
+      phase = 'l5-brief';
+      levelTitle.textContent = 'LEVEL 5 — GRAPH & CLASSIFY';
+      hintLeft.textContent   = 'Study the graph, then type  A  or  B';
+      hintRight.textContent  = 'Look for numbers vs. descriptions!';
+      scoreEl.textContent    = '0';
+      scoreDenom.textContent = `/ ${L5_GRAPHS.length}`;
+      await runScript(L5_BRIEF);
+      openInput();
+    } else if (/^(play.?again|restart|again|new.?game|retry)$/i.test(lo)) {
+      resetGame();
+    } else {
+      await typeLine('TYPE  LEVEL 5  to continue, or  PLAY AGAIN  to restart.', 'c-cyan');
+      openInput();
+    }
+
+  } else if (phase === 'l5-brief') {
+    addLine('> ' + raw.toUpperCase(), 'c-yellow');
+    addLine('');
+    if (/^(ready|yes|ok|go|start|begin|let.?s go)$/i.test(lo)) {
+      phase = 'l5-playing';
+      l5Idx = 0; l5Score = 0;
+      scoreEl.textContent = '0';
+      await l5RunScenario();
+    } else {
+      await typeLine('TYPE  READY  TO BEGIN LEVEL 5!', 'c-cyan');
+      openInput();
+    }
+
+  } else if (phase === 'l5-playing') {
+    addLine('> ' + raw.toUpperCase(), 'c-yellow');
+    addLine('');
+    if (lo !== 'a' && lo !== 'b') {
+      await typeLine('PLEASE TYPE  A  OR  B  TO SELECT YOUR ANSWER.', 'c-cyan');
+      openInput('>');
+      return;
+    }
+    const g = L5_GRAPHS[l5Idx];
+    if (lo.toUpperCase() === g.correct) {
+      l5Score++;
+      scoreEl.textContent = l5Score;
+      await typeLine('CORRECT!  ' + g.explain, 'c-green');
+    } else {
+      await typeLine('DOES NOT COMPUTE!  ' + g.explain, 'c-red');
+      await typeLine('CORRECT ANSWER WAS  ' + g.correct + ':  "' + g[g.correct].text + '"', 'c-cyan', 16);
+    }
+    l5Idx++;
+    if (l5Idx >= L5_GRAPHS.length) {
+      await l5EndGame();
+    } else {
+      addLine('');
+      await sleep(600);
+      await l5RunScenario();
+    }
+
+  } else if (phase === 'name-entry') {
+    const name = raw.trim().slice(0, 30) || 'STUDENT';
+    playerName = name;
+    closeInput();
+    screenEl.innerHTML = '';
+    await showSummary(name);
+
+  } else if (phase === 'game-over') {
+    addLine('> ' + raw.toUpperCase(), 'c-yellow');
+    addLine('');
+    if (/^(play.?again|restart|again|new.?game|retry)$/i.test(lo)) {
+      resetGame();
+    } else {
+      await typeLine('TYPE  PLAY AGAIN  TO RESTART FROM LEVEL 1.', 'c-cyan');
+      openInput();
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  LEVEL 1 GAME FUNCTIONS
+// ═══════════════════════════════════════════════════════════
+async function askQ() {
+  const q = QS[qIdx];
+  await typeLine(`QUESTION ${qIdx + 1} OF ${QS.length}:`, 'c-white');
+  await typeLine(q.t, 'c-bright', 16);
+  await typeLine('WHAT TYPE OF DATA IS THIS?', 'c-cyan');
+  openInput();
+}
+
+async function endGame() {
+  addLine('');
+  await typeLine('═'.repeat(48), 'c-cyan', 6);
+  await typeLine('LEVEL 1 COMPLETE!', 'c-bright', 30);
+  await typeLine(`YOUR FINAL SCORE:  ${score}  OUT OF  10`, 'c-white', 28);
+  addLine('');
+  if (score === 10) {
+    await typeLine('PERFECT SCORE!  YOU ARE A TRUE DATA MASTER!', 'c-green', 28);
+    await typeLine('EVERY SINGLE ANSWER WAS CORRECT.  OUTSTANDING!', 'c-green', 28);
+  } else if (score >= 8) {
+    await typeLine('EXCELLENT WORK!  YOU REALLY UNDERSTAND DATA TYPES!', 'c-green', 28);
+    await typeLine(`ONLY ${10 - score} MISTAKE${10-score===1?'':'S'} -- IMPRESSIVE!`, 'c-green', 28);
+  } else if (score >= 6) {
+    await typeLine('GOOD JOB!  A LITTLE MORE PRACTICE AND YOU WILL NAIL IT!', 'c-cyan', 28);
+  } else {
+    await typeLine('KEEP STUDYING -- YOU WILL MASTER THIS WITH PRACTICE!', 'c-cyan', 28);
+  }
+  addLine('');
+  await typeLine('TYPE  LEVEL 2  TO CONTINUE TO DATA CATCHER!', 'c-cyan', 25);
+  await typeLine('TYPE  PLAY AGAIN  TO RESTART LEVEL 1.', 'c-white');
+  phase = 'done';
+  openInput();
+}
+
+function resetGame() {
+  if (l2AnimId) { cancelAnimationFrame(l2AnimId); l2AnimId = null; }
+  inLevel2 = false;
+  canvasEl.style.display = 'none';
+  screenEl.style.display = '';
+  inputRowEl.style.display = '';
+  screenEl.innerHTML = '';
+  qIdx = 0; score = 0; l3Idx = 0; l3Score = 0; l4Idx = 0; l4Score = 0; l5Idx = 0; l5Score = 0; playerName = ''; phase = 'intro';
+  scoreEl.textContent  = '0';
+  scoreDenom.textContent = '/ 10';
+  levelTitle.textContent = 'LEVEL 1 — TYPES OF DATA';
+  hintLeft.textContent  = 'Answers:  qualitative  |  quantitative  (or numerical)  |  relative';
+  hintRight.textContent = 'Press ENTER to submit';
+  boot();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  LEVEL 2  ENGINE
+// ═══════════════════════════════════════════════════════════
+const ctx       = canvasEl.getContext('2d');
+const L2_FONT   = '17px "Courier New"';
+const L2_FONT_B = 'bold 17px "Courier New"';
+
+let l2Round    = 0;
+let l2Score    = 0;
+let l2Hits     = 0;   // correct catches this round — drives difficulty tiers
+let l2Items    = [];
+let l2Flashes  = [];
+let l2AnimId   = null;
+let l2SpawnT   = 0;
+let l2Paused   = false;
+const l2Keys   = {};
+
+const bucket = {
+  x: 0,
+  w: 0,        // computed from dash string
+  speed: 10,
+  dashes: 14,  // number of dash characters
+};
+
+// Arrow key tracking (works even without focus)
+document.addEventListener('keydown', e => {
+  // DEBUG: Ctrl+D — advance to the start of the next level
+  if (e.ctrlKey && e.key === 'd') {
+    e.preventDefault();
+    closeInput();
+    screenEl.innerHTML = '';
+
+    if (phase === 'game-over') {
+      // Already at end — restart
+      resetGame();
+
+    } else if (phase === 'name-entry') {
+      // Skip name prompt → go straight to summary with placeholder
+      playerName = 'DEBUG';
+      phase = 'game-over';
+      showSummary('DEBUG');
+
+    } else if (phase === 'done-l4' || phase === 'l5-brief' || phase === 'l5-playing') {
+      // Level 5 → complete screen (will then prompt for name)
+      l5Idx = L5_GRAPHS.length; l5Score = L5_GRAPHS.length;
+      l5EndGame();
+
+    } else if (phase === 'done-l3' || phase === 'l4-brief' || phase === 'l4-playing') {
+      // Level 4 → complete screen
+      l4Idx = L4_SCENARIOS.length; l4Score = L4_SCENARIOS.length;
+      l4EndGame();
+
+    } else if (phase === 'l3-brief' || phase === 'l3-playing') {
+      // Level 3 → jump directly into Level 4
+      phase = 'l4-playing';
+      l4Idx = 0; l4Score = 0;
+      levelTitle.textContent = 'LEVEL 4 — OBSERVE & CLASSIFY';
+      hintLeft.textContent   = 'Watch the value change, then type  A  or  B';
+      hintRight.textContent  = 'Pay close attention!';
+      scoreEl.textContent    = '0';
+      scoreDenom.textContent = `/ ${L4_SCENARIOS.length}`;
+      l4RunScenario();
+
+    } else if (inLevel2) {
+      // Level 2 → jump directly into Level 3
+      cancelAnimationFrame(l2AnimId); l2AnimId = null;
+      inLevel2 = false;
+      canvasEl.style.display   = 'none';
+      screenEl.style.display   = '';
+      inputRowEl.style.display = '';
+      phase = 'l3-playing';
+      l3Idx = 0; l3Score = 0;
+      levelTitle.textContent = 'LEVEL 3 — EVIDENCE HUNT';
+      hintLeft.textContent   = 'Select evidence text, copy (CTRL+C), paste (CTRL+V), then ENTER';
+      hintRight.textContent  = '';
+      scoreEl.textContent    = '0';
+      scoreDenom.textContent = `/ ${L3_PASSAGES.length}`;
+      l3AskQ();
+
+    } else {
+      // Level 1 (any phase including done / l2-brief) → jump directly into Level 2
+      startLevel2();
+    }
+    return;
+  }
+  l2Keys[e.key] = true;
+  if (inLevel2 && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) e.preventDefault();
+  if (!inLevel2 && inputLive && !e.ctrlKey && !e.metaKey) realInput.focus();
+});
+document.addEventListener('keyup',   e => { l2Keys[e.key] = false; });
+
+function l2SpawnItem() {
+  const type  = L2_ROUND_ORDER[l2Round];
+  const types = Object.keys(L2_POOLS);
+
+  // Tier thresholds based on correct catches this round
+  // tier 0: 0-3 hits  |  tier 1: 4-7 hits  |  tier 2: 8+ hits
+  const tier = l2Hits >= 8 ? 2 : l2Hits >= 4 ? 1 : 0;
+
+  // Target chance drops as tier rises (more distractors flood in)
+  const targetChance = [0.55, 0.40, 0.28][tier];
+  const pick = Math.random() < targetChance
+    ? type
+    : types[Math.floor(Math.random() * types.length)];
+
+  const pool = L2_POOLS[pick];
+  const text = pool[Math.floor(Math.random() * pool.length)];
+
+  ctx.font = L2_FONT;
+  const tw   = ctx.measureText(text).width;
+  const maxX = canvasEl.width - tw - 20;
+  const x    = 20 + Math.random() * Math.max(0, maxX - 20);
+
+  // Speed scales with round progression AND hit tier
+  const baseSpeed = 0.9 + l2Round * 0.25;
+  const tierBoost = [0, 0.5, 1.1][tier];
+  const speed     = baseSpeed + tierBoost + Math.random() * 1.3;
+
+  l2Items.push({ text, type: pick, x, y: -4, speed, w: tw });
+}
+
+function l2DrawHUD() {
+  const W   = canvasEl.width;
+  const typ = L2_ROUND_ORDER[l2Round];
+
+  // "CATCH:" label top-left
+  ctx.font      = L2_FONT_B;
+  ctx.fillStyle = '#FFFF55';
+  ctx.textAlign = 'left';
+  ctx.fillText('CATCH: ' + typ.toUpperCase(), 16, 26);
+
+  // sub-label
+  ctx.font      = '13px "Courier New"';
+  ctx.fillStyle = '#55FFFF';
+  ctx.fillText(L2_ROUND_LABELS[typ], 16, 44);
+
+  // round / score top-right
+  ctx.font      = L2_FONT;
+  ctx.fillStyle = '#AAAAAA';
+  ctx.textAlign = 'right';
+  ctx.fillText(`ROUND ${l2Round + 1} OF 4`, W - 16, 26);
+  ctx.textAlign = 'left';
+}
+
+function l2Loop() {
+  if (l2Paused) { l2AnimId = requestAnimationFrame(l2Loop); return; }
+
+  const W  = canvasEl.width;
+  const H  = canvasEl.height;
+  const bY = H - 34;   // bucket baseline Y
+
+  // Background
+  ctx.fillStyle = '#0000AA';
+  ctx.fillRect(0, 0, W, H);
+
+  // Move bucket
+  if (l2Keys['ArrowLeft'])  bucket.x = Math.max(0,        bucket.x - bucket.speed);
+  if (l2Keys['ArrowRight']) bucket.x = Math.min(W - bucket.w, bucket.x + bucket.speed);
+
+  // Spawn — tier scales with correct catches this round
+  l2SpawnT++;
+  const tier      = l2Hits >= 8 ? 2 : l2Hits >= 4 ? 1 : 0;
+  const interval  = Math.max(28, [82, 58, 38][tier] - l2Round * 5);
+  const maxOnScreen = [5, 8, 11][tier];
+  if (l2SpawnT >= interval && l2Items.length < maxOnScreen) {
+    l2SpawnItem();
+    l2SpawnT = 0;
+  }
+
+  // Update & draw items
+  for (let i = l2Items.length - 1; i >= 0; i--) {
+    const it = l2Items[i];
+    it.y += it.speed;
+
+    ctx.font      = L2_FONT;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.textAlign = 'left';
+    ctx.fillText(it.text, it.x, it.y);
+
+    // Collision: item baseline hits bucket zone
+    if (it.y >= bY - 4) {
+      const overlap = it.x < bucket.x + bucket.w && it.x + it.w > bucket.x;
+      if (overlap) {
+        const hit = it.type === L2_ROUND_ORDER[l2Round]
+                 || (it.type === 'numerical'    && L2_ROUND_ORDER[l2Round] === 'quantitative')
+                 || (it.type === 'quantitative' && L2_ROUND_ORDER[l2Round] === 'numerical');
+        if (hit) {
+          l2Score++;
+          l2Hits++;
+          l2Flashes.push({ x: it.x, y: it.y, text: '+1', color: '#55FF55', life: 35 });
+        } else {
+          l2Score = Math.max(0, l2Score - 1);
+          l2Flashes.push({ x: it.x, y: it.y, text: '-1', color: '#FF5555', life: 35 });
+        }
+        scoreEl.textContent = l2Score;
+      }
+      l2Items.splice(i, 1);
+    }
+  }
+
+  // Draw flashes (+1 / -1 indicators)
+  ctx.font = L2_FONT_B;
+  for (let i = l2Flashes.length - 1; i >= 0; i--) {
+    const f = l2Flashes[i];
+    ctx.globalAlpha = f.life / 35;
+    ctx.fillStyle   = f.color;
+    ctx.textAlign   = 'left';
+    ctx.fillText(f.text, f.x, f.y - (35 - f.life) * 0.6);
+    f.life--;
+    if (f.life <= 0) l2Flashes.splice(i, 1);
+  }
+  ctx.globalAlpha = 1;
+
+  // Separator line above bucket
+  ctx.strokeStyle = '#2222CC';
+  ctx.lineWidth   = 1;
+  ctx.beginPath();
+  ctx.moveTo(0,  bY - 10);
+  ctx.lineTo(W,  bY - 10);
+  ctx.stroke();
+
+  // Draw bucket
+  const dashStr = '-'.repeat(bucket.dashes);
+  ctx.font      = L2_FONT;
+  ctx.fillStyle = '#FFFF55';
+  ctx.textAlign = 'left';
+  ctx.fillText(dashStr, bucket.x, bY + 17);
+
+  // HUD
+  l2DrawHUD();
+
+  // Round complete?
+  if (l2Score >= 10) {
+    l2RoundComplete();
+    return;
+  }
+
+  l2AnimId = requestAnimationFrame(l2Loop);
+}
+
+function l2RoundComplete() {
+  l2Paused = true;
+  cancelAnimationFrame(l2AnimId);
+  l2Items  = [];
+  l2Flashes = [];
+
+  const W   = canvasEl.width;
+  const H   = canvasEl.height;
+  const typ = L2_ROUND_ORDER[l2Round];
+
+  // Overlay
+  ctx.fillStyle = 'rgba(0,0,60,0.82)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.textAlign = 'center';
+  ctx.font      = 'bold 22px "Courier New"';
+  ctx.fillStyle = '#55FF55';
+  ctx.fillText(`${typ.toUpperCase()} ROUND COMPLETE!`, W / 2, H / 2 - 28);
+
+  l2Round++;
+
+  if (l2Round >= L2_ROUND_ORDER.length) {
+    ctx.font      = '17px "Courier New"';
+    ctx.fillStyle = '#FFFF55';
+    ctx.fillText('ALL FOUR TYPES MASTERED!', W / 2, H / 2 + 14);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText('Returning to results...', W / 2, H / 2 + 42);
+    ctx.textAlign = 'left';
+    setTimeout(l2Complete, 2800);
+  } else {
+    const next = L2_ROUND_ORDER[l2Round];
+    ctx.font      = '17px "Courier New"';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(`NEXT: CATCH  ${next.toUpperCase()}`, W / 2, H / 2 + 14);
+    ctx.fillStyle = '#55FFFF';
+    ctx.font      = '14px "Courier New"';
+    ctx.fillText(L2_ROUND_LABELS[next], W / 2, H / 2 + 38);
+    ctx.fillStyle = '#AAAAAA';
+    ctx.fillText('Get ready...', W / 2, H / 2 + 62);
+    ctx.textAlign = 'left';
+
+    setTimeout(() => {
+      l2Score = 0;
+      l2Hits  = 0;
+      scoreEl.textContent = '0';
+      l2SpawnT  = 0;
+      l2Paused  = false;
+      l2AnimId  = requestAnimationFrame(l2Loop);
+    }, 2600);
+  }
+}
+
+async function l2Complete() {
+  cancelAnimationFrame(l2AnimId);
+  l2AnimId = null;
+  inLevel2 = false;
+
+  // Restore text UI
+  canvasEl.style.display   = 'none';
+  screenEl.style.display   = '';
+  inputRowEl.style.display = '';
+  screenEl.innerHTML       = '';
+
+  levelTitle.textContent  = 'LEVEL 3 — EVIDENCE HUNT';
+  hintLeft.textContent    = 'Select evidence text from the passage, copy (CTRL+C), paste (CTRL+V), then ENTER';
+  hintRight.textContent   = '';
+  scoreEl.textContent     = '0';
+  scoreDenom.textContent  = `/ ${L3_PASSAGES.length}`;
+
+  phase = 'l3-brief';
+  await typeLine('', '');
+  await runScript(L3_BRIEF);
+  openInput();
+}
+
+function startLevel2() {
+  // Measure screen area before hiding it
+  const rect = screenEl.getBoundingClientRect();
+
+  // Swap UI panels
+  screenEl.style.display   = 'none';
+  inputRowEl.style.display = 'none';
+  canvasEl.style.display   = 'block';
+
+  // Size canvas to exact screen area
+  canvasEl.width  = Math.floor(rect.width);
+  canvasEl.height = Math.floor(rect.height);
+
+  // Update bars
+  levelTitle.textContent  = 'LEVEL 2 — DATA CATCHER';
+  hintLeft.textContent    = '← →  ARROW KEYS to move bucket   |   Catch the correct data type!';
+  hintRight.textContent   = 'Score 10 to advance each round';
+  scoreEl.textContent     = '0';
+  scoreDenom.textContent  = '/ 10';
+
+  // Init game state
+  inLevel2 = true;
+  l2Round  = 0;
+  l2Score  = 0;
+  l2Hits   = 0;
+  l2Items  = [];
+  l2Flashes = [];
+  l2SpawnT = 0;
+  l2Paused = false;
+
+  // Measure bucket width
+  ctx.font  = L2_FONT;
+  bucket.w  = ctx.measureText('-'.repeat(bucket.dashes)).width;
+  bucket.x  = (canvasEl.width - bucket.w) / 2;
+
+  // Brief "get ready" intro drawn on canvas
+  ctx.fillStyle = '#0000AA';
+  ctx.fillRect(0, 0, canvasEl.width, canvasEl.height);
+
+  const W = canvasEl.width;
+  const H = canvasEl.height;
+  ctx.textAlign = 'center';
+  ctx.font      = 'bold 20px "Courier New"';
+  ctx.fillStyle = '#FFFF55';
+  ctx.fillText('LEVEL 2 -- DATA CATCHER', W / 2, H / 2 - 40);
+  ctx.font      = '17px "Courier New"';
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillText(`ROUND 1 OF 4 -- CATCH: QUALITATIVE`, W / 2, H / 2);
+  ctx.fillStyle = '#55FFFF';
+  ctx.fillText(L2_ROUND_LABELS['qualitative'], W / 2, H / 2 + 28);
+  ctx.fillStyle = '#AAAAAA';
+  ctx.fillText('Starting in 3...', W / 2, H / 2 + 64);
+  ctx.textAlign = 'left';
+
+  setTimeout(() => { l2AnimId = requestAnimationFrame(l2Loop); }, 2200);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+//  LEVEL 3  FUNCTIONS
+// ═══════════════════════════════════════════════════════════
+function l3Normalize(s) {
+  return s.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function l3CheckAnswer(pasted, expected) {
+  const p = l3Normalize(pasted);
+  const e = l3Normalize(expected);
+  if (p === e) return true;
+  if (p.includes(e)) return true;
+  if (e.includes(p) && p.length >= Math.floor(e.length * 0.8)) return true;
+  return false;
+}
+
+function l3ClassifyError(pasted, q) {
+  const p     = l3Normalize(pasted);
+  const pass  = l3Normalize(q.passage);
+  const ans   = l3Normalize(q.answer);
+
+  // Whole-passage selection: pasted covers ≥70% of the passage characters
+  if (p.length >= pass.length * 0.70) return 'overload';
+
+  // Too many words: pasted has more than answer word-count + 3
+  const pWords = p.split(/\s+/).filter(Boolean).length;
+  const aWords = ans.split(/\s+/).filter(Boolean).length;
+  if (pWords > aWords + 3) return 'too-many';
+
+  // Wrong content at roughly the right length
+  return 'wrong';
+}
+
+async function l3AskQ() {
+  const q   = L3_PASSAGES[l3Idx];
+  const num = l3Idx + 1;
+  const tot = L3_PASSAGES.length;
+
+  await typeLine(`PASSAGE ${num} OF ${tot}:`, 'c-white');
+
+  // Render passage as a selectable block (user copies from here)
+  const d = document.createElement('div');
+  d.className = 'line passage';
+  d.textContent = q.passage;
+  screenEl.appendChild(d);
+  screenEl.scrollTop = screenEl.scrollHeight;
+  await sleep(LINE_GAP);
+
+  await typeLine('', '');
+  await typeLine(q.ask, 'c-cyan');
+  await typeLine('Select the evidence text above, copy it (CTRL+C),', 'c-white', 16);
+  await typeLine('then click below, paste (CTRL+V), and press ENTER.', 'c-white', 16);
+  openInput('>');
+}
+
+async function l3EndGame() {
+  addLine('');
+  await typeLine('═'.repeat(48), 'c-cyan', 6);
+  await typeLine('LEVEL 3 COMPLETE!', 'c-bright', 30);
+  await typeLine(`YOUR SCORE:  ${l3Score}  OUT OF  ${L3_PASSAGES.length}`, 'c-white', 28);
+  addLine('');
+  if (l3Score === L3_PASSAGES.length) {
+    await typeLine('FLAWLESS!  YOU IDENTIFIED EVERY PIECE OF EVIDENCE!', 'c-green', 25);
+  } else if (l3Score >= L3_PASSAGES.length - 1) {
+    await typeLine('EXCELLENT!  NEARLY PERFECT EVIDENCE IDENTIFICATION!', 'c-green', 25);
+  } else if (l3Score >= Math.floor(L3_PASSAGES.length / 2)) {
+    await typeLine('GOOD WORK!  KEEP PRACTICING YOUR EVIDENCE HUNTING!', 'c-cyan', 25);
+  } else {
+    await typeLine('KEEP STUDYING THE DATA TYPES AND TRY AGAIN!', 'c-cyan', 25);
+  }
+  addLine('');
+  await typeLine('TYPE  LEVEL 4  TO CONTINUE TO OBSERVE & CLASSIFY!', 'c-cyan', 25);
+  await typeLine('TYPE  PLAY AGAIN  TO RESTART FROM LEVEL 1.', 'c-white');
+  levelTitle.textContent = 'LEVEL 3 — COMPLETE!';
+  phase = 'done-l3';
+  openInput();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  LEVEL 4  FUNCTIONS
+// ═══════════════════════════════════════════════════════════
+function l4AnimateValue(s) {
+  return new Promise(resolve => {
+    const dir      = s.to > s.from ? '▲' : '▼';
+    const dirColor = s.to > s.from ? '#55FF55' : '#FF5555';
+
+    const block   = document.createElement('div');
+    block.className = 'l4-block';
+
+    const topicEl = document.createElement('div');
+    topicEl.className = 'l4-topic';
+    topicEl.textContent = s.topic;
+
+    const numEl   = document.createElement('span');
+    numEl.className = 'l4-numval';
+    numEl.textContent = s.from.toFixed(s.decimals);
+
+    const unitEl  = document.createElement('span');
+    unitEl.className = 'l4-unitval';
+    unitEl.textContent = s.unit;
+
+    const numRow  = document.createElement('div');
+    numRow.appendChild(numEl);
+    numRow.appendChild(unitEl);
+
+    const trendEl = document.createElement('div');
+    trendEl.className = 'l4-trend';
+    trendEl.style.color   = dirColor;
+    trendEl.style.opacity = '0';
+    trendEl.textContent   = dir;
+
+    block.appendChild(topicEl);
+    block.appendChild(numRow);
+    block.appendChild(trendEl);
+    screenEl.appendChild(block);
+    screenEl.scrollTop = screenEl.scrollHeight;
+
+    // Hold starting value 1.3s, then count to end over 3s
+    setTimeout(() => {
+      trendEl.style.opacity = '1';
+      const totalMs = 3000;
+      const fps     = 40;
+      const stepMs  = 1000 / fps;
+      const steps   = Math.round(totalMs / stepMs);
+      let   step    = 0;
+
+      const timer = setInterval(() => {
+        step++;
+        const t    = step / steps;
+        const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        numEl.textContent = (s.from + (s.to - s.from) * ease).toFixed(s.decimals);
+        screenEl.scrollTop = screenEl.scrollHeight;
+        if (step >= steps) {
+          clearInterval(timer);
+          numEl.textContent  = s.to.toFixed(s.decimals);
+          numEl.style.color  = dirColor;
+          setTimeout(resolve, 700);
+        }
+      }, stepMs);
+    }, 1300);
+  });
+}
+
+async function l4RunScenario() {
+  const s = L4_SCENARIOS[l4Idx];
+  screenEl.innerHTML = '';   // fresh screen each scenario
+
+  await typeLine(`SCENARIO ${l4Idx + 1} OF ${L4_SCENARIOS.length}  —  ${s.topic}`, 'c-bright', 18);
+  await typeLine(s.context, 'c-white', 18);
+  await typeLine('WATCH CLOSELY AS THE VALUE CHANGES...', 'c-cyan');
+
+  await l4AnimateValue(s);
+
+  addLine('');
+  await typeLine(s.question, 'c-bright', 22);
+  addLine('');
+  await typeLine('  A:  ' + s.A.text, 'c-yellow', 16);
+  await typeLine('  B:  ' + s.B.text, 'c-yellow', 16);
+  addLine('');
+  await typeLine('TYPE  A  OR  B', 'c-cyan');
+  openInput('>');
+}
+
+async function l4EndGame() {
+  addLine('');
+  await typeLine('═'.repeat(48), 'c-cyan', 6);
+  await typeLine('LEVEL 4 COMPLETE!', 'c-bright', 30);
+  await typeLine(`YOUR SCORE:  ${l4Score}  OUT OF  ${L4_SCENARIOS.length}`, 'c-white', 28);
+  addLine('');
+  if (l4Score === L4_SCENARIOS.length) {
+    await typeLine('PERFECT!  YOU OBSERVED AND CLASSIFIED EVERY CHANGE!', 'c-green', 25);
+  } else if (l4Score >= L4_SCENARIOS.length - 1) {
+    await typeLine('EXCELLENT!  OUTSTANDING OBSERVATIONAL SKILLS!', 'c-green', 25);
+  } else if (l4Score >= Math.ceil(L4_SCENARIOS.length / 2)) {
+    await typeLine('GOOD WORK!  KEEP PRACTICING YOUR DATA CLASSIFICATION!', 'c-cyan', 25);
+  } else {
+    await typeLine('PAY CLOSE ATTENTION TO NUMBERS VS. DESCRIPTIONS NEXT TIME!', 'c-cyan', 25);
+  }
+  addLine('');
+  await typeLine('TYPE  LEVEL 5  TO CONTINUE TO GRAPH & CLASSIFY!', 'c-cyan', 25);
+  await typeLine('TYPE  PLAY AGAIN  TO RESTART FROM LEVEL 1.', 'c-white');
+  levelTitle.textContent = 'LEVEL 4 — COMPLETE!';
+  phase = 'done-l4';
+  openInput();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  LEVEL 5  FUNCTIONS
+// ═══════════════════════════════════════════════════════════
+function l5MakeGraph(g) {
+  const W=520, H=310, pL=65, pR=22, pT=36, pB=52;
+  const plotW=W-pL-pR, plotH=H-pT-pB;
+  const sx = x => pL + (x-g.xMin)/(g.xMax-g.xMin)*plotW;
+  const sy = y => pT + plotH - (y-g.yMin)/(g.yMax-g.yMin)*plotH;
+
+  const fmt = v => {
+    if (v >= 1000)            return (v/1000).toFixed(v%1000===0?0:1)+'k';
+    if (Math.abs(v) < 1 && v !== 0) return v.toFixed(2);
+    if (Math.abs(v) < 10)     return v.toFixed(1);
+    return Math.round(v)+'';
+  };
+
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" `
+        + `style="font-family:'Courier New',monospace;display:block;max-width:100%;height:auto">`;
+
+  // background
+  s += `<rect width="${W}" height="${H}" fill="#000033" rx="4"/>`;
+
+  // grid lines (6 divisions each axis)
+  const divs = 5;
+  for (let i=0; i<=divs; i++) {
+    const gx = (pL + i/divs*plotW).toFixed(1);
+    const gy = (pT + i/divs*plotH).toFixed(1);
+    s += `<line x1="${gx}" y1="${pT}" x2="${gx}" y2="${pT+plotH}" stroke="#111188" stroke-width="1"/>`;
+    s += `<line x1="${pL}" y1="${gy}" x2="${pL+plotW}" y2="${gy}" stroke="#111188" stroke-width="1"/>`;
+  }
+
+  // axes
+  s += `<line x1="${pL}" y1="${pT}" x2="${pL}" y2="${pT+plotH}" stroke="#888888" stroke-width="2"/>`;
+  s += `<line x1="${pL}" y1="${pT+plotH}" x2="${pL+plotW}" y2="${pT+plotH}" stroke="#888888" stroke-width="2"/>`;
+
+  // trendline as polyline (supports both linear and nonlinear)
+  const tpts = [];
+  for (let i=0; i<=100; i++) {
+    const xv = g.xMin + i/100*(g.xMax-g.xMin);
+    const yv = g.trendFn(xv);
+    if (yv >= g.yMin && yv <= g.yMax) {
+      tpts.push(`${sx(xv).toFixed(1)},${sy(yv).toFixed(1)}`);
+    }
+  }
+  if (tpts.length > 1)
+    s += `<polyline points="${tpts.join(' ')}" fill="none" stroke="#FFFF55" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+
+  // data points
+  for (const p of g.points)
+    s += `<circle cx="${sx(p.x).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="5" fill="#55FFFF" opacity="0.80"/>`;
+
+  // x-axis tick labels
+  for (let i=0; i<=divs; i++) {
+    const v  = g.xMin + i/divs*(g.xMax-g.xMin);
+    const gx = (pL + i/divs*plotW).toFixed(1);
+    s += `<text x="${gx}" y="${pT+plotH+16}" text-anchor="middle" fill="#AAAAAA" font-size="11">${fmt(v)}</text>`;
+  }
+  // y-axis tick labels
+  for (let i=0; i<=divs; i++) {
+    const v  = g.yMax - i/divs*(g.yMax-g.yMin);
+    const gy = (pT + i/divs*plotH).toFixed(1);
+    s += `<text x="${pL-6}" y="${+gy+4}" text-anchor="end" fill="#AAAAAA" font-size="11">${fmt(v)}</text>`;
+  }
+
+  // axis labels
+  const cx = (pL+plotW/2).toFixed(1);
+  const cy = (pT+plotH/2).toFixed(1);
+  s += `<text x="${cx}" y="${H-3}" text-anchor="middle" fill="#CCCCCC" font-size="12">${g.xLabel}</text>`;
+  s += `<text transform="rotate(-90)" x="${-cy}" y="13" text-anchor="middle" fill="#CCCCCC" font-size="12">${g.yLabel}</text>`;
+
+  // graph title
+  s += `<text x="${cx}" y="22" text-anchor="middle" fill="#55FFFF" font-size="13" font-weight="bold">${g.title}</text>`;
+
+  // graph type label (top-right, subtle)
+  s += `<text x="${pL+plotW}" y="${pT+13}" text-anchor="end" fill="#4444AA" font-size="10">${g.typeLabel}</text>`;
+
+  s += `</svg>`;
+  return s;
+}
+
+async function l5RunScenario() {
+  const g = L5_GRAPHS[l5Idx];
+  screenEl.innerHTML = '';
+
+  await typeLine(`GRAPH ${l5Idx+1} OF ${L5_GRAPHS.length}  —  ${g.title}`, 'c-bright', 18);
+  await typeLine(g.context, 'c-white', 18);
+  await typeLine('STUDY THE GRAPH CAREFULLY...', 'c-cyan');
+
+  const block = document.createElement('div');
+  block.className = 'l5-block';
+  block.innerHTML = l5MakeGraph(g);
+  screenEl.appendChild(block);
+  screenEl.scrollTop = screenEl.scrollHeight;
+  await sleep(500);
+
+  addLine('');
+  await typeLine(g.question, 'c-bright', 22);
+  addLine('');
+  await typeLine('  A:  ' + g.A.text, 'c-yellow', 16);
+  await typeLine('  B:  ' + g.B.text, 'c-yellow', 16);
+  addLine('');
+  await typeLine('TYPE  A  OR  B', 'c-cyan');
+  openInput('>');
+}
+
+async function l5EndGame() {
+  addLine('');
+  await typeLine('═'.repeat(48), 'c-cyan', 6);
+  await typeLine('LEVEL 5 COMPLETE!', 'c-bright', 30);
+  await typeLine(`YOUR SCORE:  ${l5Score}  OUT OF  ${L5_GRAPHS.length}`, 'c-white', 28);
+  addLine('');
+  if (l5Score === L5_GRAPHS.length) {
+    await typeLine('PERFECT!  YOU READ EVERY GRAPH LIKE A TRUE SCIENTIST!', 'c-green', 25);
+  } else if (l5Score >= L5_GRAPHS.length - 1) {
+    await typeLine('EXCELLENT!  OUTSTANDING GRAPH INTERPRETATION SKILLS!', 'c-green', 25);
+  } else if (l5Score >= Math.ceil(L5_GRAPHS.length / 2)) {
+    await typeLine('GOOD WORK!  KEEP PRACTICING READING GRAPHS!', 'c-cyan', 25);
+  } else {
+    await typeLine('STUDY THE DIFFERENCE BETWEEN NUMBERS AND DESCRIPTIONS!', 'c-cyan', 25);
+  }
+  addLine('');
+  await typeLine('▓'.repeat(46), 'c-cyan', 4);
+  await typeLine('DATA QUEST -- ALL FIVE LEVELS COMPLETE!', 'c-bright', 28);
+  addLine('');
+  await typeLine('ENTER YOUR NAME TO RECEIVE YOUR REPORT CARD:', 'c-cyan', 22);
+  levelTitle.textContent = 'DATA QUEST — COMPLETE!';
+  phase = 'name-entry';
+  openInput('>');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  GORILLAS.BAS  DRAW-STRING  RENDERER
+// ═══════════════════════════════════════════════════════════
+function makeGorillaCanvas() {
+  // Original QBasic DRAW string from GORILLAS.BAS (SCREEN 12)
+  // COLOR 11 = bright cyan/yellow, PSET sets start cursor, DRAW traces outline
+  const DRAW_STR =
+    'U5BM-3R6U1R2D1R2U2R2D3R1U1L1D1L1U1L1D1L1D3R2U2R1D2R1U1R1' +
+    'D1L1R1U1L1D1R1D1L1R1D1L2U1L1U1L1U2LU2L1U1';
+
+  // ── Parse DRAW string into move segments ─────────────────
+  function parseSegs(s) {
+    const segs = [];
+    let i = 0, x = 0, y = 0;
+    while (i < s.length) {
+      let blank = false;
+      if (s[i].toUpperCase() === 'B') { blank = true; i++; }
+      if (i >= s.length) break;
+      const cmd = s[i++].toUpperCase();
+      let nx = x, ny = y;
+      if (cmd === 'M') {
+        let sx = 1;
+        if (s[i] === '-') { sx = -1; i++; } else if (s[i] === '+') i++;
+        let xi = 0;
+        while (i < s.length && s[i] >= '0' && s[i] <= '9') xi = xi * 10 + +s[i++];
+        xi *= sx;
+        let yi = 0;
+        if (i < s.length && s[i] === ',') {
+          i++;
+          let sy = 1;
+          if (s[i] === '-') { sy = -1; i++; } else if (s[i] === '+') i++;
+          while (i < s.length && s[i] >= '0' && s[i] <= '9') yi = yi * 10 + +s[i++];
+          yi *= sy;
+        }
+        nx = x + xi; ny = y + yi;
+      } else {
+        let n = 0, hasN = false;
+        while (i < s.length && s[i] >= '0' && s[i] <= '9') { n = n * 10 + +s[i++]; hasN = true; }
+        if (!hasN) n = 1;
+        if      (cmd === 'U') ny = y - n;
+        else if (cmd === 'D') ny = y + n;
+        else if (cmd === 'L') nx = x - n;
+        else if (cmd === 'R') nx = x + n;
+      }
+      segs.push({ x1: x, y1: y, x2: nx, y2: ny, draw: !blank });
+      x = nx; y = ny;
+    }
+    return segs;
+  }
+
+  const segs = parseSegs(DRAW_STR);
+
+  // ── Bounding box ──────────────────────────────────────────
+  let minX = 0, maxX = 0, minY = 0, maxY = 0;
+  for (const sg of segs) {
+    minX = Math.min(minX, sg.x1, sg.x2);
+    maxX = Math.max(maxX, sg.x1, sg.x2);
+    minY = Math.min(minY, sg.y1, sg.y2);
+    maxY = Math.max(maxY, sg.y1, sg.y2);
+  }
+
+  // ── Canvas setup ──────────────────────────────────────────
+  const SCALE = 14;            // each QB pixel → 14×14 canvas pixels
+  const PAD   = SCALE * 3;
+  const W     = (maxX - minX + 1) * SCALE + PAD * 2;
+  const H     = (maxY - minY + 1) * SCALE + PAD * 2;
+
+  const cv  = document.createElement('canvas');
+  cv.width  = W;
+  cv.height = H;
+  cv.style.cssText =
+    'display:block;margin:6px auto;image-rendering:pixelated;' +
+    'image-rendering:crisp-edges;max-width:100%;';
+
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#000033';
+  ctx.fillRect(0, 0, W, H);
+
+  const toX = x => PAD + (x - minX) * SCALE;
+  const toY = y => PAD + (y - minY) * SCALE;
+
+  // ── Rasterise each segment as pixel blocks ────────────────
+  ctx.fillStyle = '#FFFF55';   // EGA COLOR 11 — bright yellow
+  for (const sg of segs) {
+    if (!sg.draw) continue;
+    const dx = sg.x2 - sg.x1, dy = sg.y2 - sg.y1;
+    const steps = Math.max(Math.abs(dx), Math.abs(dy));
+    for (let t = 0; t <= steps; t++) {
+      const px = steps ? Math.round(sg.x1 + dx * t / steps) : sg.x1;
+      const py = steps ? Math.round(sg.y1 + dy * t / steps) : sg.y1;
+      ctx.fillRect(toX(px), toY(py), SCALE, SCALE);
+    }
+  }
+
+  return cv;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  REPORT CARD  &  GORILLA
+// ═══════════════════════════════════════════════════════════
+async function showSummary(name) {
+  const total = score + l3Score + l4Score + l5Score;
+  const max   = 10 + L3_PASSAGES.length + L4_SCENARIOS.length + L5_GRAPHS.length;
+  const pct   = Math.round(total / max * 100);
+  const letter = pct >= 90 ? 'A' : pct >= 80 ? 'B' : pct >= 70 ? 'C' : pct >= 60 ? 'D' : 'F';
+  const gOf    = p  => p >= 90 ? 'A' : p >= 80 ? 'B' : p >= 70 ? 'C' : p >= 60 ? 'D' : 'F';
+
+  const BAR  = '  ' + '═'.repeat(52);
+  const pad  = (s, n) => s + ' '.repeat(Math.max(0, n - s.length));
+
+  const l1p = Math.round(score / 10 * 100);
+  const l3p = Math.round(l3Score / L3_PASSAGES.length * 100);
+  const l4p = Math.round(l4Score / L4_SCENARIOS.length * 100);
+  const l5p = Math.round(l5Score / L5_GRAPHS.length * 100);
+
+  // Build right-aligned score columns
+  const row = (label, got, outOf, pctVal, extra) => {
+    const scores = `${got} / ${outOf}`;
+    const g = extra || gOf(pctVal);
+    return '  ' + pad(label, 34) + pad(scores, 8) + '  ' + g;
+  };
+
+  await typeLine(BAR, 'c-cyan', 4);
+  await typeLine('       DATA QUEST — STUDENT REPORT CARD', 'c-bright', 16);
+  await typeLine(BAR, 'c-cyan', 4);
+  addLine('');
+  await typeLine('  STUDENT:  ' + name.toUpperCase(), 'c-yellow', 14);
+  addLine('');
+  await typeLine(BAR, 'c-cyan', 4);
+  await typeLine(row('LEVEL 1 — TYPES OF DATA',        score,    10,                        l1p), 'c-white', 12);
+  await typeLine(row('LEVEL 2 — DATA CATCHER',         4, 4,                              100, 'PASS'), 'c-white', 12);
+  await typeLine(row('LEVEL 3 — EVIDENCE HUNT',        l3Score,  L3_PASSAGES.length,        l3p), 'c-white', 12);
+  await typeLine(row('LEVEL 4 — OBSERVE & CLASSIFY',   l4Score,  L4_SCENARIOS.length,       l4p), 'c-white', 12);
+  await typeLine(row('LEVEL 5 — GRAPH & CLASSIFY',     l5Score,  L5_GRAPHS.length,          l5p), 'c-white', 12);
+  await typeLine(BAR, 'c-cyan', 4);
+  await typeLine(
+    '  ' + pad('OVERALL SCORE:  ' + total + ' / ' + max + '  (' + pct + '%)', 44) + 'GRADE:  ' + letter,
+    letter === 'A' ? 'c-green' : letter === 'B' ? 'c-green' : letter === 'C' ? 'c-yellow' : 'c-red',
+    14
+  );
+  await typeLine(BAR, 'c-cyan', 4);
+
+  addLine('');
+  await sleep(400);
+
+  // ── Canvas Gorilla — GORILLAS.BAS DRAW string ─────────────
+  const gorillaEl = makeGorillaCanvas();
+  screenEl.appendChild(gorillaEl);
+  screenEl.scrollTop = screenEl.scrollHeight;
+  await sleep(200);
+
+  addLine('');
+  await typeLine('  -- GORILLA.BAS SALUTES YOU, ' + name.toUpperCase() + '! --', 'c-green', 18);
+
+  const praise =
+    letter === 'A' ? 'AN OUTSTANDING PERFORMANCE!  YOU ARE A TRUE DATA MASTER!' :
+    letter === 'B' ? 'EXCELLENT WORK!  YOU HAVE A STRONG COMMAND OF DATA TYPES!' :
+    letter === 'C' ? 'GOOD EFFORT!  KEEP REVIEWING AND YOU WILL MASTER IT ALL!' :
+                     'KEEP PRACTICING -- YOU WILL GET THERE!';
+  await typeLine('  ' + praise, letter <= 'B' ? 'c-green' : 'c-cyan', 18);
+
+  addLine('');
+  await typeLine(BAR, 'c-cyan', 4);
+  await typeLine('  TYPE  PLAY AGAIN  TO RESTART FROM LEVEL 1.', 'c-white');
+  levelTitle.textContent = 'DATA QUEST — COMPLETE!';
+  phase = 'game-over';
+  openInput();
+}
+
+async function boot() {
+  await typeLine('DATA QUEST  v1.0', 'c-bright', 35);
+  await typeLine('(C) COMPUTER LEARNING SYSTEMS', 'c-white', 30);
+  addLine('');
+  await sleep(220);
+  await runScript(INTRO);
+  openInput();
+}
+
+boot();
+</script>
+</body>
+</html>
