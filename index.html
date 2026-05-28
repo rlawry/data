@@ -371,10 +371,10 @@ const L2_POOLS = {
 const L2_ROUND_ORDER = ['qualitative','numerical','relative','quantitative'];
 
 const L2_ROUND_LABELS = {
-  qualitative:  'QUALITATIVE — descriptive words (including vague amounts)',
-  numerical:    'NUMERICAL — exact numbers & units',
-  relative:     'RELATIVE — comparison words',
-  quantitative: 'QUANTITATIVE — exact numbers & units  (= NUMERICAL)',
+  qualitative:  'QUALITATIVE - descriptive words (including vague amounts)',
+  numerical:    'NUMERICAL - exact numbers & units',
+  relative:     'RELATIVE - comparison words',
+  quantitative: 'QUANTITATIVE - exact numbers & units  (= NUMERICAL)',
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -494,7 +494,7 @@ const L4_SCENARIOS = [
     explain: '"3.6 mm" is a precise, exact measurement -- QUANTITATIVE.',
   },
   {
-    topic:   'WIND SPEED — TROPICAL STORM',
+    topic:   'WIND SPEED - TROPICAL STORM',
     context: 'A tropical storm rapidly intensified over warm ocean water.',
     from: 15,   to: 95,   unit: ' mph', decimals: 0,
     question: 'Which statement describes the QUALITATIVE change?',
@@ -579,7 +579,7 @@ const L5_GRAPHS = [
     A: { text: 'Wind speed increases by approximately 13 km/h for every kilometer of altitude gained.', isQual: false },
     B: { text: 'As altitude increases, wind tends to blow considerably faster.', isQual: true },
     correct: 'A',
-    explain: '"~13 km/h per km" gives a precise rate of change — QUANTITATIVE.',
+    explain: '"~13 km/h per km" gives a precise rate of change - QUANTITATIVE.',
   },
   // ── 2  NEGATIVE LINEAR NON-PROPORTIONAL ─────────────────
   {
@@ -599,7 +599,7 @@ const L5_GRAPHS = [
     A: { text: 'Air pressure decreases by approximately 91 hPa for every kilometer of altitude gained.', isQual: false },
     B: { text: 'The higher the altitude, the less atmospheric pressure you experience.', isQual: true },
     correct: 'B',
-    explain: '"Less pressure at higher altitude" is a general description — QUALITATIVE.',
+    explain: '"Less pressure at higher altitude" is a general description - QUALITATIVE.',
   },
   // ── 3  PROPORTIONAL ─────────────────────────────────────
   {
@@ -619,7 +619,7 @@ const L5_GRAPHS = [
     A: { text: 'The farther the earthquake, the longer it takes for the seismic wave to arrive.', isQual: true },
     B: { text: 'Seismic waves travel approximately 360 km for every minute elapsed.', isQual: false },
     correct: 'B',
-    explain: '"360 km per minute" is a precise rate — QUANTITATIVE.',
+    explain: '"360 km per minute" is a precise rate - QUANTITATIVE.',
   },
   // ── 4  NONLINEAR NON-PROPORTIONAL ───────────────────────
   {
@@ -638,7 +638,7 @@ const L5_GRAPHS = [
     A: { text: 'A planet at 4 AU from the Sun completes one orbit in exactly 8 years.', isQual: false },
     B: { text: 'The farther a planet orbits from the Sun, the longer its year becomes.', isQual: true },
     correct: 'B',
-    explain: '"Longer year farther from the Sun" is a general description — QUALITATIVE.',
+    explain: '"Longer year farther from the Sun" is a general description - QUALITATIVE.',
   },
   // ── 5  NEGATIVE LINEAR NON-PROPORTIONAL ─────────────────
   {
@@ -659,7 +659,7 @@ const L5_GRAPHS = [
     A: { text: 'Annual rainfall drops by approximately 2 mm for every kilometer inland from the coast.', isQual: false },
     B: { text: 'Locations farther from the ocean tend to receive considerably less rainfall each year.', isQual: true },
     correct: 'A',
-    explain: '"~2 mm per km" is a precise rate of change — QUANTITATIVE.',
+    explain: '"~2 mm per km" is a precise rate of change - QUANTITATIVE.',
   },
   // ── 6  PROPORTIONAL ─────────────────────────────────────
   {
@@ -679,7 +679,7 @@ const L5_GRAPHS = [
     A: { text: 'Each additional 100 ppm of CO₂ above preindustrial levels corresponds to roughly 0.9°C of warming.', isQual: false },
     B: { text: 'Higher atmospheric CO₂ concentrations are associated with warmer global temperatures.', isQual: true },
     correct: 'B',
-    explain: '"Associated with warmer temperatures" is a general description — QUALITATIVE.',
+    explain: '"Associated with warmer temperatures" is a general description - QUALITATIVE.',
   },
   // ── 7  NONLINEAR NON-PROPORTIONAL ───────────────────────
   {
@@ -699,7 +699,7 @@ const L5_GRAPHS = [
     A: { text: 'Species diversity increases rapidly at first, then gradually levels off over time.', isQual: true },
     B: { text: 'By year 30, approximately 90 species have returned to the volcanic island.', isQual: false },
     correct: 'B',
-    explain: '"Approximately 90 species by year 30" is a precise count at a specific time — QUANTITATIVE.',
+    explain: '"Approximately 90 species by year 30" is a precise count at a specific time - QUANTITATIVE.',
   },
   // ── 8  POSITIVE LINEAR NON-PROPORTIONAL ─────────────────
   {
@@ -720,7 +720,7 @@ const L5_GRAPHS = [
     A: { text: 'Carbon storage increases by approximately 0.22 kg/m² for each additional centimeter of soil depth.', isQual: false },
     B: { text: 'Deeper soil layers generally store more organic carbon than shallow soils.', isQual: true },
     correct: 'A',
-    explain: '"~0.22 kg/m² per cm" is a precise rate of change — QUANTITATIVE.',
+    explain: '"~0.22 kg/m² per cm" is a precise rate of change - QUANTITATIVE.',
   },
 ];
 
@@ -830,7 +830,7 @@ document.addEventListener('click', e => {
   if (!inLevel2 && inputLive && !e.target.closest('.passage')) realInput.focus();
 });
 
-// Paste support — document-level so it fires even when realInput isn't focused.
+// Paste support - document-level so it fires even when realInput isn't focused.
 // This is critical for Level 3: user selects passage text, Ctrl+C, then Ctrl+V
 // anywhere on the page to submit without needing to click into the input first.
 document.addEventListener('paste', e => {
@@ -992,7 +992,7 @@ async function handleInput(raw) {
     addLine('');
     if (/^(level.?4|next|continue|l4)$/i.test(lo)) {
       phase = 'l4-brief';
-      levelTitle.textContent  = 'LEVEL 4 — OBSERVE & CLASSIFY';
+      levelTitle.textContent  = 'LEVEL 4 - OBSERVE & CLASSIFY';
       hintLeft.textContent    = 'Watch the value change, then type  A  or  B';
       hintRight.textContent   = 'Pay close attention!';
       scoreEl.textContent     = '0';
@@ -1050,7 +1050,7 @@ async function handleInput(raw) {
     addLine('');
     if (/^(level.?5|next|continue|l5)$/i.test(lo)) {
       phase = 'l5-brief';
-      levelTitle.textContent = 'LEVEL 5 — GRAPH & CLASSIFY';
+      levelTitle.textContent = 'LEVEL 5 - GRAPH & CLASSIFY';
       hintLeft.textContent   = 'Study the graph, then type  A  or  B';
       hintRight.textContent  = 'Look for numbers vs. descriptions!';
       scoreEl.textContent    = '0';
@@ -1113,10 +1113,26 @@ async function handleInput(raw) {
   } else if (phase === 'game-over') {
     addLine('> ' + raw.toUpperCase(), 'c-yellow');
     addLine('');
-    if (/^(play.?again|restart|again|new.?game|retry)$/i.test(lo)) {
+    if (/^play\s*again$/i.test(lo)) {
+      phase = 'confirm-restart';
+      await typeLine('ARE YOU SURE?  THIS WILL ERASE YOUR REPORT CARD.', 'c-red', 20);
+      await typeLine('TYPE  YES  TO CONFIRM, OR ANYTHING ELSE TO CANCEL.', 'c-cyan');
+      openInput('>');
+    } else {
+      await typeLine('YOUR REPORT CARD IS STILL ON SCREEN.', 'c-cyan');
+      await typeLine('TYPE  PLAY AGAIN  (EXACTLY) TO RESTART FROM LEVEL 1.', 'c-white');
+      openInput();
+    }
+
+  } else if (phase === 'confirm-restart') {
+    addLine('> ' + raw.toUpperCase(), 'c-yellow');
+    addLine('');
+    if (/^yes$/i.test(lo)) {
       resetGame();
     } else {
-      await typeLine('TYPE  PLAY AGAIN  TO RESTART FROM LEVEL 1.', 'c-cyan');
+      phase = 'game-over';
+      await typeLine('RESTART CANCELLED.  YOUR REPORT CARD IS PRESERVED.', 'c-green', 18);
+      await typeLine('TYPE  PLAY AGAIN  TO RESTART FROM LEVEL 1.', 'c-white');
       openInput();
     }
   }
@@ -1167,7 +1183,7 @@ function resetGame() {
   qIdx = 0; score = 0; l3Idx = 0; l3Score = 0; l4Idx = 0; l4Score = 0; l5Idx = 0; l5Score = 0; playerName = ''; phase = 'intro';
   scoreEl.textContent  = '0';
   scoreDenom.textContent = '/ 10';
-  levelTitle.textContent = 'LEVEL 1 — TYPES OF DATA';
+  levelTitle.textContent = 'LEVEL 1 - TYPES OF DATA';
   hintLeft.textContent  = 'Answers:  qualitative  |  quantitative  (or numerical)  |  relative';
   hintRight.textContent = 'Press ENTER to submit';
   boot();
@@ -1182,7 +1198,7 @@ const L2_FONT_B = 'bold 17px "Courier New"';
 
 let l2Round    = 0;
 let l2Score    = 0;
-let l2Hits     = 0;   // correct catches this round — drives difficulty tiers
+let l2Hits     = 0;   // correct catches this round - drives difficulty tiers
 let l2Items    = [];
 let l2Flashes  = [];
 let l2AnimId   = null;
@@ -1199,15 +1215,15 @@ const bucket = {
 
 // Arrow key tracking (works even without focus)
 document.addEventListener('keydown', e => {
-  // DEBUG: Ctrl+D — advance to the start of the next level
+  // DEBUG: Ctrl+D - advance to the start of the next level
   if (e.ctrlKey && e.key === 'd') {
     e.preventDefault();
     closeInput();
     screenEl.innerHTML = '';
 
-    if (phase === 'game-over') {
-      // Already at end — restart
-      resetGame();
+    if (phase === 'game-over' || phase === 'confirm-restart') {
+      // Final screen - Ctrl+D does nothing here to protect the report card
+      return;
 
     } else if (phase === 'name-entry') {
       // Skip name prompt → go straight to summary with placeholder
@@ -1229,7 +1245,7 @@ document.addEventListener('keydown', e => {
       // Level 3 → jump directly into Level 4
       phase = 'l4-playing';
       l4Idx = 0; l4Score = 0;
-      levelTitle.textContent = 'LEVEL 4 — OBSERVE & CLASSIFY';
+      levelTitle.textContent = 'LEVEL 4 - OBSERVE & CLASSIFY';
       hintLeft.textContent   = 'Watch the value change, then type  A  or  B';
       hintRight.textContent  = 'Pay close attention!';
       scoreEl.textContent    = '0';
@@ -1245,7 +1261,7 @@ document.addEventListener('keydown', e => {
       inputRowEl.style.display = '';
       phase = 'l3-playing';
       l3Idx = 0; l3Score = 0;
-      levelTitle.textContent = 'LEVEL 3 — EVIDENCE HUNT';
+      levelTitle.textContent = 'LEVEL 3 - EVIDENCE HUNT';
       hintLeft.textContent   = 'Select evidence text, copy (CTRL+C), paste (CTRL+V), then ENTER';
       hintRight.textContent  = '';
       scoreEl.textContent    = '0';
@@ -1332,7 +1348,7 @@ function l2Loop() {
   if (l2Keys['ArrowLeft'])  bucket.x = Math.max(0,        bucket.x - bucket.speed);
   if (l2Keys['ArrowRight']) bucket.x = Math.min(W - bucket.w, bucket.x + bucket.speed);
 
-  // Spawn — tier scales with correct catches this round
+  // Spawn - tier scales with correct catches this round
   l2SpawnT++;
   const tier      = l2Hits >= 8 ? 2 : l2Hits >= 4 ? 1 : 0;
   const interval  = Math.max(28, [82, 58, 38][tier] - l2Round * 5);
@@ -1476,7 +1492,7 @@ async function l2Complete() {
   inputRowEl.style.display = '';
   screenEl.innerHTML       = '';
 
-  levelTitle.textContent  = 'LEVEL 3 — EVIDENCE HUNT';
+  levelTitle.textContent  = 'LEVEL 3 - EVIDENCE HUNT';
   hintLeft.textContent    = 'Select evidence text from the passage, copy (CTRL+C), paste (CTRL+V), then ENTER';
   hintRight.textContent   = '';
   scoreEl.textContent     = '0';
@@ -1502,7 +1518,7 @@ function startLevel2() {
   canvasEl.height = Math.floor(rect.height);
 
   // Update bars
-  levelTitle.textContent  = 'LEVEL 2 — DATA CATCHER';
+  levelTitle.textContent  = 'LEVEL 2 - DATA CATCHER';
   hintLeft.textContent    = '← →  ARROW KEYS to move bucket   |   Catch the correct data type!';
   hintRight.textContent   = 'Score 10 to advance each round';
   scoreEl.textContent     = '0';
@@ -1621,7 +1637,7 @@ async function l3EndGame() {
   addLine('');
   await typeLine('TYPE  LEVEL 4  TO CONTINUE TO OBSERVE & CLASSIFY!', 'c-cyan', 25);
   await typeLine('TYPE  PLAY AGAIN  TO RESTART FROM LEVEL 1.', 'c-white');
-  levelTitle.textContent = 'LEVEL 3 — COMPLETE!';
+  levelTitle.textContent = 'LEVEL 3 - COMPLETE!';
   phase = 'done-l3';
   openInput();
 }
@@ -1695,7 +1711,7 @@ async function l4RunScenario() {
   const s = L4_SCENARIOS[l4Idx];
   screenEl.innerHTML = '';   // fresh screen each scenario
 
-  await typeLine(`SCENARIO ${l4Idx + 1} OF ${L4_SCENARIOS.length}  —  ${s.topic}`, 'c-bright', 18);
+  await typeLine(`SCENARIO ${l4Idx + 1} OF ${L4_SCENARIOS.length}  -  ${s.topic}`, 'c-bright', 18);
   await typeLine(s.context, 'c-white', 18);
   await typeLine('WATCH CLOSELY AS THE VALUE CHANGES...', 'c-cyan');
 
@@ -1729,7 +1745,7 @@ async function l4EndGame() {
   addLine('');
   await typeLine('TYPE  LEVEL 5  TO CONTINUE TO GRAPH & CLASSIFY!', 'c-cyan', 25);
   await typeLine('TYPE  PLAY AGAIN  TO RESTART FROM LEVEL 1.', 'c-white');
-  levelTitle.textContent = 'LEVEL 4 — COMPLETE!';
+  levelTitle.textContent = 'LEVEL 4 - COMPLETE!';
   phase = 'done-l4';
   openInput();
 }
@@ -1818,7 +1834,7 @@ async function l5RunScenario() {
   const g = L5_GRAPHS[l5Idx];
   screenEl.innerHTML = '';
 
-  await typeLine(`GRAPH ${l5Idx+1} OF ${L5_GRAPHS.length}  —  ${g.title}`, 'c-bright', 18);
+  await typeLine(`GRAPH ${l5Idx+1} OF ${L5_GRAPHS.length}  -  ${g.title}`, 'c-bright', 18);
   await typeLine(g.context, 'c-white', 18);
   await typeLine('STUDY THE GRAPH CAREFULLY...', 'c-cyan');
 
@@ -1859,7 +1875,7 @@ async function l5EndGame() {
   await typeLine('DATA QUEST -- ALL FIVE LEVELS COMPLETE!', 'c-bright', 28);
   addLine('');
   await typeLine('ENTER YOUR NAME TO RECEIVE YOUR REPORT CARD:', 'c-cyan', 22);
-  levelTitle.textContent = 'DATA QUEST — COMPLETE!';
+  levelTitle.textContent = 'DATA QUEST - COMPLETE!';
   phase = 'name-entry';
   openInput('>');
 }
@@ -1946,7 +1962,7 @@ function makeGorillaCanvas() {
   const toY = y => PAD + (y - minY) * SCALE;
 
   // ── Rasterise each segment as pixel blocks ────────────────
-  ctx.fillStyle = '#FFFF55';   // EGA COLOR 11 — bright yellow
+  ctx.fillStyle = '#FFFF55';   // EGA COLOR 11 - bright yellow
   for (const sg of segs) {
     if (!sg.draw) continue;
     const dx = sg.x2 - sg.x1, dy = sg.y2 - sg.y1;
@@ -1987,17 +2003,17 @@ async function showSummary(name) {
   };
 
   await typeLine(BAR, 'c-cyan', 4);
-  await typeLine('       DATA QUEST — STUDENT REPORT CARD', 'c-bright', 16);
+  await typeLine('       DATA QUEST - STUDENT REPORT CARD', 'c-bright', 16);
   await typeLine(BAR, 'c-cyan', 4);
   addLine('');
   await typeLine('  STUDENT:  ' + name.toUpperCase(), 'c-yellow', 14);
   addLine('');
   await typeLine(BAR, 'c-cyan', 4);
-  await typeLine(row('LEVEL 1 — TYPES OF DATA',        score,    10,                        l1p), 'c-white', 12);
-  await typeLine(row('LEVEL 2 — DATA CATCHER',         4, 4,                              100, 'PASS'), 'c-white', 12);
-  await typeLine(row('LEVEL 3 — EVIDENCE HUNT',        l3Score,  L3_PASSAGES.length,        l3p), 'c-white', 12);
-  await typeLine(row('LEVEL 4 — OBSERVE & CLASSIFY',   l4Score,  L4_SCENARIOS.length,       l4p), 'c-white', 12);
-  await typeLine(row('LEVEL 5 — GRAPH & CLASSIFY',     l5Score,  L5_GRAPHS.length,          l5p), 'c-white', 12);
+  await typeLine(row('LEVEL 1 - TYPES OF DATA',        score,    10,                        l1p), 'c-white', 12);
+  await typeLine(row('LEVEL 2 - DATA CATCHER',         4, 4,                              100, 'PASS'), 'c-white', 12);
+  await typeLine(row('LEVEL 3 - EVIDENCE HUNT',        l3Score,  L3_PASSAGES.length,        l3p), 'c-white', 12);
+  await typeLine(row('LEVEL 4 - OBSERVE & CLASSIFY',   l4Score,  L4_SCENARIOS.length,       l4p), 'c-white', 12);
+  await typeLine(row('LEVEL 5 - GRAPH & CLASSIFY',     l5Score,  L5_GRAPHS.length,          l5p), 'c-white', 12);
   await typeLine(BAR, 'c-cyan', 4);
   await typeLine(
     '  ' + pad('OVERALL SCORE:  ' + total + ' / ' + max + '  (' + pct + '%)', 44) + 'GRADE:  ' + letter,
@@ -2009,7 +2025,7 @@ async function showSummary(name) {
   addLine('');
   await sleep(400);
 
-  // ── Canvas Gorilla — GORILLAS.BAS DRAW string ─────────────
+  // ── Canvas Gorilla - GORILLAS.BAS DRAW string ─────────────
   const gorillaEl = makeGorillaCanvas();
   screenEl.appendChild(gorillaEl);
   screenEl.scrollTop = screenEl.scrollHeight;
@@ -2028,7 +2044,7 @@ async function showSummary(name) {
   addLine('');
   await typeLine(BAR, 'c-cyan', 4);
   await typeLine('  TYPE  PLAY AGAIN  TO RESTART FROM LEVEL 1.', 'c-white');
-  levelTitle.textContent = 'DATA QUEST — COMPLETE!';
+  levelTitle.textContent = 'DATA QUEST - COMPLETE!';
   phase = 'game-over';
   openInput();
 }
