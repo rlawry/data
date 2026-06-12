@@ -422,7 +422,7 @@ const L3_PASSAGES = [
     passage: "The town's new water tower holds 500,000 gallons, which is significantly more than the old tower that was demolished last spring. Engineers said the new structure is also stronger and more resistant to corrosion than any tower built in the county before 1990.",
     type: 'RELATIVE',
     ask: 'Identify the RELATIVE evidence comparing the two water towers.',
-    answer: 'significantly more than the old tower that was demolished last spring',
+    answer: 'significantly more than the old tower',
     hint: 'HINT: Find the full phrase that directly compares the new tower\'s capacity to the old one.',
   },
   {
@@ -1575,6 +1575,9 @@ function l3CheckAnswer(pasted, expected) {
   const p = l3Normalize(pasted);
   const e = l3Normalize(expected);
   if (p === e) return true;
+  const pWords = p.split(/\s+/).filter(Boolean).length;
+  const eWords = e.split(/\s+/).filter(Boolean).length;
+  if (pWords > eWords + 3) return false;   // selection too long — let classifyError handle it
   if (p.includes(e)) return true;
   if (e.includes(p) && p.length >= Math.floor(e.length * 0.8)) return true;
   return false;
@@ -1886,12 +1889,12 @@ async function l5EndGame() {
 //  arms=1 → right arm raised (throwing pose)
 // ═══════════════════════════════════════════════════════════
 function makeGorillaCanvas() {
-  const SCL = 6;                // Scl() scale factor
-  const W   = 195, H = 265;
+  const SCL = 4;                // Scl() scale factor
+  const W   = 130, H = 177;
   const cv  = document.createElement('canvas');
   cv.width  = W;
   cv.height = H;
-  cv.style.cssText = 'float:right;margin:0 0 8px 16px;';
+  cv.style.cssText = 'float:right;margin:0 0 6px 12px;';
 
   const ctx = cv.getContext('2d');
   const pi  = Math.PI;
@@ -1901,7 +1904,7 @@ function makeGorillaCanvas() {
   ctx.fillStyle = '#0000AA';
   ctx.fillRect(0, 0, W, H);
 
-  const ox = 100, oy = 42;      // gorilla (x, y) — centre-top of head
+  const ox = 67, oy = 28;       // gorilla (x, y) — centre-top of head
   const s  = n => n * SCL;      // Scl(n)
 
   // LINE (x1,y1)-(x2,y2), c, BF  →  fillRect
@@ -2014,66 +2017,56 @@ async function showSummary(name) {
   const letter = pct >= 90 ? 'A' : pct >= 80 ? 'B' : pct >= 70 ? 'C' : pct >= 60 ? 'D' : 'F';
   const gOf    = p  => p >= 90 ? 'A' : p >= 80 ? 'B' : p >= 70 ? 'C' : p >= 60 ? 'D' : 'F';
 
-  const BAR  = '  ' + '═'.repeat(52);
-  const pad  = (s, n) => s + ' '.repeat(Math.max(0, n - s.length));
+  const BAR = '═'.repeat(34);
+  const pad = (s, n) => s + ' '.repeat(Math.max(0, n - s.length));
+  const row = (label, got, outOf, pctVal, extra) => {
+    const scores = `${got}/${outOf}`;
+    const g = extra || gOf(pctVal);
+    return pad(label, 23) + pad(scores, 6) + g;
+  };
 
   const l1p = Math.round(score / 10 * 100);
   const l3p = Math.round(l3Score / L3_PASSAGES.length * 100);
   const l4p = Math.round(l4Score / L4_SCENARIOS.length * 100);
   const l5p = Math.round(l5Score / L5_GRAPHS.length * 100);
 
-  // Build right-aligned score columns
-  const row = (label, got, outOf, pctVal, extra) => {
-    const scores = `${got} / ${outOf}`;
-    const g = extra || gOf(pctVal);
-    return '  ' + pad(label, 34) + pad(scores, 8) + '  ' + g;
-  };
-
-  await typeLine(BAR, 'c-cyan', 4);
-  await typeLine('       DATA QUEST - STUDENT REPORT CARD', 'c-bright', 16);
-  await typeLine(BAR, 'c-cyan', 4);
-  addLine('');
-  await typeLine('  STUDENT:  ' + name.toUpperCase(), 'c-yellow', 14);
-  addLine('');
-  await typeLine(BAR, 'c-cyan', 4);
-  await typeLine(row('LEVEL 1 - TYPES OF DATA',        score,    10,                        l1p), 'c-white', 12);
-  await typeLine(row('LEVEL 2 - DATA CATCHER',         4, 4,                              100, 'PASS'), 'c-white', 12);
-  await typeLine(row('LEVEL 3 - EVIDENCE HUNT',        l3Score,  L3_PASSAGES.length,        l3p), 'c-white', 12);
-  await typeLine(row('LEVEL 4 - OBSERVE & CLASSIFY',   l4Score,  L4_SCENARIOS.length,       l4p), 'c-white', 12);
-  await typeLine(row('LEVEL 5 - GRAPH & CLASSIFY',     l5Score,  L5_GRAPHS.length,          l5p), 'c-white', 12);
-  await typeLine(BAR, 'c-cyan', 4);
-  await typeLine(
-    '  ' + pad('OVERALL SCORE:  ' + total + ' / ' + max + '  (' + pct + '%)', 44) + 'GRADE:  ' + letter,
-    letter === 'A' ? 'c-green' : letter === 'B' ? 'c-green' : letter === 'C' ? 'c-yellow' : 'c-red',
-    14
-  );
-  await typeLine(BAR, 'c-cyan', 4);
-
-  addLine('');
-  await sleep(400);
-
-  // ── Canvas Gorilla - GORILLAS.BAS DRAW string ─────────────
+  // Insert gorilla first so all following text wraps around it
   const gorillaEl = makeGorillaCanvas();
   screenEl.appendChild(gorillaEl);
   screenEl.scrollTop = screenEl.scrollHeight;
-  await sleep(200);
 
+  await typeLine(BAR, 'c-cyan', 4);
+  await typeLine(' DATA QUEST - REPORT CARD', 'c-bright', 16);
+  await typeLine(BAR, 'c-cyan', 4);
+  await typeLine(' STUDENT: ' + name.toUpperCase(), 'c-yellow', 14);
+  await typeLine(BAR, 'c-cyan', 4);
+  await typeLine(row('LV1 TYPES OF DATA',      score,   10,                  l1p), 'c-white', 12);
+  await typeLine(row('LV2 DATA CATCHER',        4, 4,                      100, 'PASS'), 'c-white', 12);
+  await typeLine(row('LV3 EVIDENCE HUNT',       l3Score, L3_PASSAGES.length,  l3p), 'c-white', 12);
+  await typeLine(row('LV4 OBSERVE & CLASSIFY',  l4Score, L4_SCENARIOS.length, l4p), 'c-white', 12);
+  await typeLine(row('LV5 GRAPH & CLASSIFY',    l5Score, L5_GRAPHS.length,    l5p), 'c-white', 12);
+  await typeLine(BAR, 'c-cyan', 4);
+  await typeLine(
+    pad('TOTAL: ' + total + '/' + max + ' (' + pct + '%)', 24) + 'GRADE: ' + letter,
+    letter === 'A' || letter === 'B' ? 'c-green' : letter === 'C' ? 'c-yellow' : 'c-red',
+    14
+  );
+  await typeLine(BAR, 'c-cyan', 4);
   addLine('');
-  await typeLine('  -- Hooray, ' + name.toUpperCase() + '! --', 'c-green', 18);
 
   const praise =
-    letter === 'A' ? 'AN OUTSTANDING PERFORMANCE!  YOU ARE A TRUE DATA MASTER!' :
-    letter === 'B' ? 'EXCELLENT WORK!  YOU HAVE A STRONG COMMAND OF DATA TYPES!' :
-    letter === 'C' ? 'GOOD EFFORT!  KEEP REVIEWING AND YOU WILL MASTER IT ALL!' :
-                     'KEEP PRACTICING -- YOU WILL GET THERE!';
-  await typeLine('  ' + praise, letter <= 'B' ? 'c-green' : 'c-cyan', 18);
+    letter === 'A' ? 'OUTSTANDING! DATA MASTER!' :
+    letter === 'B' ? 'EXCELLENT! STRONG COMMAND!' :
+    letter === 'C' ? 'GOOD EFFORT! KEEP REVIEWING!' :
+                     'KEEP PRACTICING! YOU\'LL GET IT!';
+  await typeLine('-- ' + name.toUpperCase() + ' --', 'c-green', 18);
+  await typeLine(praise, letter <= 'B' ? 'c-green' : 'c-cyan', 18);
 
   const clr = document.createElement('div');
   clr.style.clear = 'both';
   screenEl.appendChild(clr);
   addLine('');
-  await typeLine(BAR, 'c-cyan', 4);
-  await typeLine('  TYPE  PLAY AGAIN  TO RESTART FROM LEVEL 1.', 'c-white');
+  await typeLine('TYPE  PLAY AGAIN  TO RESTART.', 'c-white');
   levelTitle.textContent = 'DATA QUEST - COMPLETE!';
   phase = 'game-over';
   openInput();
